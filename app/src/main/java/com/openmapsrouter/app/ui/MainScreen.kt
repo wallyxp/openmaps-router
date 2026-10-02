@@ -1,5 +1,6 @@
 package com.openmapsrouter.app.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -77,21 +79,31 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    var showSettingsDialog by remember { mutableStateOf(false) }
+    var showSettingsWindow by remember { mutableStateOf(false) }
     var showNotInstalledDialog by remember { mutableStateOf(false) }
     var showConfirmClearDialog by remember { mutableStateOf(false) }
 
-    val scrollState = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkBackground)
-    ) {
-        // Top Header with status bar padding
-        Header(
-            onOpenSettings = { showSettingsDialog = true }
+    if (showSettingsWindow) {
+        BackHandler {
+            showSettingsWindow = false
+        }
+        SettingsScreen(
+            settings = settings,
+            onUpdateSettings = onUpdateSettings,
+            onClose = { showSettingsWindow = false }
         )
+    } else {
+        val scrollState = rememberScrollState()
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(DarkBackground)
+        ) {
+            // Top Header with status bar padding
+            Header(
+                onOpenSettings = { showSettingsWindow = true }
+            )
 
         Column(
             modifier = Modifier
@@ -202,15 +214,6 @@ fun MainScreen(
         }
     }
 
-    // Settings Dialog
-    if (showSettingsDialog) {
-        SettingsDialog(
-            settings = settings,
-            onUpdateSettings = onUpdateSettings,
-            onDismiss = { showSettingsDialog = false }
-        )
-    }
-
     // Not Installed Dialog
     if (showNotInstalledDialog) {
         AlertDialog(
@@ -301,6 +304,7 @@ fun MainScreen(
                 }
             }
         )
+    }
     }
 }
 
@@ -537,56 +541,6 @@ fun SearchPlacesCard(
                 }
             }
 
-            // Quick Samples when query is empty
-            if (searchQuery.isEmpty() && suggestions.isEmpty()) {
-                Spacer(modifier = Modifier.height(18.dp))
-                HorizontalDivider(color = DarkBorderSubtle)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "POPULAR LOCATIONS",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSecondaryDark,
-                    letterSpacing = 0.8.sp
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val sampleQueries = listOf(
-                        "🗼 Eiffel Tower Paris",
-                        "🌉 Golden Gate Bridge",
-                        "🗽 Statue of Liberty",
-                        "🕌 Taj Mahal Agra",
-                        "☕ Starbucks Times Square",
-                        "🚉 Guwahati Railway Station"
-                    )
-                    sampleQueries.forEach { sample ->
-                        Surface(
-                            color = DarkSurfaceElevated,
-                            shape = RoundedCornerShape(50),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .clickable {
-                                    onSearchQueryChange(sample.substring(2).trim())
-                                }
-                        ) {
-                            Text(
-                                text = sample,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = TextPrimaryDark,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -605,54 +559,12 @@ fun Header(onOpenSettings: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurfaceElevated)
-                        .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Map,
-                        contentDescription = "Map Icon",
-                        tint = PureWhite,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "OpenMapsRouter",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimaryDark
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            color = EmeraldGreenContainer,
-                            shape = RoundedCornerShape(50),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreenBorder)
-                        ) {
-                            Text(
-                                text = "OM",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = EmeraldGreen,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                    Text(
-                        text = "Google Maps → Organic Maps",
-                        fontSize = 12.sp,
-                        color = TextSecondaryDark,
-                        fontWeight = FontWeight.Normal
-                    )
-                }
-            }
+            Text(
+                text = "OpenMapsRouter",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimaryDark
+            )
 
             IconButton(
                 onClick = onOpenSettings,
@@ -1094,24 +1006,26 @@ fun ResultCard(
                     onClick = onCopyCoords,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(50),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                 ) {
                     Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(15.dp), tint = TextPrimaryDark)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy Coords", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Copy Coords", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
 
                 OutlinedButton(
                     onClick = onCopyOmLink,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(50),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                 ) {
                     Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(15.dp), tint = TextPrimaryDark)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy om://", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Copy om://", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
             }
 
@@ -1126,36 +1040,39 @@ fun ResultCard(
                     onClick = onShare,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(50),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                 ) {
-                    Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(15.dp), tint = TextPrimaryDark)
+                    Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = TextPrimaryDark)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Share", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Share", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
 
                 OutlinedButton(
                     onClick = onOpenSystem,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(50),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                 ) {
-                    Icon(Icons.Outlined.Place, contentDescription = null, modifier = Modifier.size(15.dp), tint = TextPrimaryDark)
+                    Icon(Icons.Outlined.Place, contentDescription = null, modifier = Modifier.size(14.dp), tint = TextPrimaryDark)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("System", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("System Map", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                 }
 
                 OutlinedButton(
                     onClick = onOpenOsm,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(50),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                 ) {
-                    Icon(Icons.Outlined.Public, contentDescription = null, modifier = Modifier.size(15.dp), tint = TextPrimaryDark)
+                    Icon(Icons.Outlined.Public, contentDescription = null, modifier = Modifier.size(14.dp), tint = TextPrimaryDark)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("OSM", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("OSM Web", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
             }
         }
@@ -1269,262 +1186,374 @@ fun HistorySection(
 }
 
 @Composable
-fun SettingsDialog(
+fun SettingsScreen(
     settings: AppSettings,
     onUpdateSettings: (AppSettings) -> Unit,
-    onDismiss: () -> Unit
+    onClose: () -> Unit
 ) {
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
 
-    Dialog(onDismissRequest = onDismiss) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkBackground)
+    ) {
+        // Top Header
         Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = DarkSurface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 24.dp)
+            color = DarkBackground,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
+            Row(
                 modifier = Modifier
-                    .padding(22.dp)
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Text(
+                    text = "Settings",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimaryDark
+                )
+
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(DarkSurfaceElevated)
+                        .border(1.dp, DarkBorder, CircleShape)
                 ) {
-                    Text("Settings", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimaryDark)
-                    IconButton(
-                        onClick = onDismiss,
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Close Settings",
+                        tint = PureWhite,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            }
+        }
+
+        // Settings Content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Section 1: Automation
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "AUTOMATION",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextSecondaryDark,
+                        letterSpacing = 0.8.sp
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Auto-Open Organic Maps", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimaryDark)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("Immediately launch Organic Maps after deriving", fontSize = 12.sp, color = TextSecondaryDark)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Switch(
+                            checked = settings.autoOpenOrganicMaps,
+                            onCheckedChange = { onUpdateSettings(settings.copy(autoOpenOrganicMaps = it)) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = PureWhite,
+                                checkedTrackColor = EmeraldGreen,
+                                uncheckedThumbColor = TextSecondaryDark,
+                                uncheckedTrackColor = DarkSurfaceElevated,
+                                uncheckedBorderColor = DarkBorder
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = DarkBorderSubtle)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Save History", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimaryDark)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("Store recent places locally", fontSize = 12.sp, color = TextSecondaryDark)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Switch(
+                            checked = settings.keepHistory,
+                            onCheckedChange = { onUpdateSettings(settings.copy(keepHistory = it)) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = PureWhite,
+                                checkedTrackColor = EmeraldGreen,
+                                uncheckedThumbColor = TextSecondaryDark,
+                                uncheckedTrackColor = DarkSurfaceElevated,
+                                uncheckedBorderColor = DarkBorder
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Section 2: Link Interception (Android 12+)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "LINK INTERCEPTION (OPEN BY DEFAULT)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextSecondaryDark,
+                        letterSpacing = 0.8.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "To prompt or automatically open maps.app.goo.gl links on Android 12+, enable supported links in system settings. Google app map previews will also offer OpenMapsRouter.",
+                        fontSize = 12.sp,
+                        color = TextSecondaryDark,
+                        lineHeight = 17.sp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { OrganicMapsLauncher.openDefaultAppsSettings(context) },
                         modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(DarkSurfaceElevated)
-                            .border(1.dp, DarkBorder, CircleShape)
+                            .fillMaxWidth()
+                            .heightIn(min = 50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PureWhite,
+                            contentColor = PureBlack
+                        ),
+                        shape = RoundedCornerShape(50),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = "Close", tint = TextSecondaryDark, modifier = Modifier.size(16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Settings,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = PureBlack
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Configure default links (Android 12+)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PureBlack
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Open Settings",
+                                modifier = Modifier.size(18.dp),
+                                tint = PureBlack
+                            )
+                        }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(18.dp))
+            // Section 3: Search Provider / API Key
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "SEARCH PROVIDER (OPTIONAL GOOGLE API KEY)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextSecondaryDark,
+                        letterSpacing = 0.8.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Free live place search works out of the box with zero setup. If you have a Google Cloud Places API key, you can enter it here to search directly from Google's proprietary Places database.",
+                        fontSize = 12.sp,
+                        color = TextSecondaryDark,
+                        lineHeight = 17.sp
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                // Automation
-                Text("AUTOMATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondaryDark, letterSpacing = 0.8.sp)
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Auto-Open Organic Maps", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimaryDark)
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text("Immediately launch Organic Maps after deriving", fontSize = 12.sp, color = TextSecondaryDark)
-                    }
-                    Switch(
-                        checked = settings.autoOpenOrganicMaps,
-                        onCheckedChange = { onUpdateSettings(settings.copy(autoOpenOrganicMaps = it)) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = PureWhite,
-                            checkedTrackColor = EmeraldGreen,
-                            uncheckedThumbColor = TextSecondaryDark,
-                            uncheckedTrackColor = DarkSurfaceElevated,
-                            uncheckedBorderColor = DarkBorder
+                    var apiKeyInput by remember { mutableStateOf(settings.googleApiKey) }
+                    OutlinedTextField(
+                        value = apiKeyInput,
+                        onValueChange = {
+                            apiKeyInput = it
+                            onUpdateSettings(settings.copy(googleApiKey = it.trim()))
+                        },
+                        placeholder = { Text("AIzaSy... (leave blank for free search)", fontSize = 12.sp, color = TextMutedDark) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(50),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PureWhite,
+                            unfocusedBorderColor = DarkBorder,
+                            focusedContainerColor = DarkSurfaceElevated,
+                            unfocusedContainerColor = DarkSurfaceElevated,
+                            focusedTextColor = TextPrimaryDark,
+                            unfocusedTextColor = TextPrimaryDark,
+                            cursorColor = PureWhite
                         )
                     )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Save History", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimaryDark)
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text("Store recent places locally", fontSize = 12.sp, color = TextSecondaryDark)
-                    }
-                    Switch(
-                        checked = settings.keepHistory,
-                        onCheckedChange = { onUpdateSettings(settings.copy(keepHistory = it)) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = PureWhite,
-                            checkedTrackColor = EmeraldGreen,
-                            uncheckedThumbColor = TextSecondaryDark,
-                            uncheckedTrackColor = DarkSurfaceElevated,
-                            uncheckedBorderColor = DarkBorder
-                        )
+            // Section 4: URL Scheme
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "URL SCHEME",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextSecondaryDark,
+                        letterSpacing = 0.8.sp
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Surface(
+                        color = DarkSurfaceElevated,
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            if (settings.preferredScheme == "om") 1.5.dp else 1.dp,
+                            if (settings.preferredScheme == "om") EmeraldGreen else DarkBorder
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { onUpdateSettings(settings.copy(preferredScheme = "om")) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("om:// scheme (Recommended)", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimaryDark)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("Directly targets Organic Maps application", fontSize = 12.sp, color = TextSecondaryDark)
+                            }
+                            if (settings.preferredScheme == "om") {
+                                Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Surface(
+                        color = DarkSurfaceElevated,
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            if (settings.preferredScheme == "geo") 1.5.dp else 1.dp,
+                            if (settings.preferredScheme == "geo") EmeraldGreen else DarkBorder
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { onUpdateSettings(settings.copy(preferredScheme = "geo")) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("geo: scheme", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimaryDark)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("Standard Geo URI (system map handler)", fontSize = 12.sp, color = TextSecondaryDark)
+                            }
+                            if (settings.preferredScheme == "geo") {
+                                Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(18.dp))
-                HorizontalDivider(color = DarkBorderSubtle)
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Link Interception & System Defaults
-                Text("LINK INTERCEPTION (OPEN BY DEFAULT)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondaryDark, letterSpacing = 0.8.sp)
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    "To prompt or automatically open maps.app.goo.gl links on Android 12+, enable supported links in system settings. Google app map previews will also offer OpenMapsRouter.",
-                    fontSize = 12.sp,
-                    color = TextSecondaryDark,
-                    lineHeight = 16.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Button(
-                    onClick = { OrganicMapsLauncher.openDefaultAppsSettings(context) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PureWhite,
-                        contentColor = PureBlack
-                    ),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(16.dp), tint = PureBlack)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Configure Default Links (Android 12+)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PureBlack)
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-                HorizontalDivider(color = DarkBorderSubtle)
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Search Provider / API Key
-                Text("SEARCH PROVIDER (OPTIONAL GOOGLE API KEY)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondaryDark, letterSpacing = 0.8.sp)
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    "Free live place search works out of the box with zero setup. If you have a Google Cloud Places API key, you can enter it here to search directly from Google's proprietary Places database.",
-                    fontSize = 12.sp,
-                    color = TextSecondaryDark,
-                    lineHeight = 16.sp
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-
-                var apiKeyInput by remember { mutableStateOf(settings.googleApiKey) }
-                OutlinedTextField(
-                    value = apiKeyInput,
-                    onValueChange = {
-                        apiKeyInput = it
-                        onUpdateSettings(settings.copy(googleApiKey = it.trim()))
-                    },
-                    placeholder = { Text("AIzaSy... (leave blank for free search)", fontSize = 12.sp, color = TextMutedDark) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(50),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PureWhite,
-                        unfocusedBorderColor = DarkBorder,
-                        focusedContainerColor = DarkSurfaceElevated,
-                        unfocusedContainerColor = DarkSurfaceElevated,
-                        focusedTextColor = TextPrimaryDark,
-                        unfocusedTextColor = TextPrimaryDark,
-                        cursorColor = PureWhite
+            // Section 5: Store Links
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "DOWNLOAD ORGANIC MAPS",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextSecondaryDark,
+                        letterSpacing = 0.8.sp
                     )
-                )
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                Spacer(modifier = Modifier.height(18.dp))
-                HorizontalDivider(color = DarkBorderSubtle)
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Scheme Choice
-                Text("URL SCHEME", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondaryDark, letterSpacing = 0.8.sp)
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Surface(
-                    color = DarkSurfaceElevated,
-                    shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(
-                        if (settings.preferredScheme == "om") 1.5.dp else 1.dp,
-                        if (settings.preferredScheme == "om") EmeraldGreen else DarkBorder
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { onUpdateSettings(settings.copy(preferredScheme = "om")) }
-                ) {
                     Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("om:// scheme (Recommended)", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimaryDark)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text("Directly targets Organic Maps application", fontSize = 12.sp, color = TextSecondaryDark)
+                        OutlinedButton(
+                            onClick = { OrganicMapsLauncher.openUrl(context, OrganicMapsLauncher.PLAY_STORE_URL) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(50),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark),
+                            contentPadding = PaddingValues(vertical = 12.dp)
+                        ) {
+                            Text("Google Play", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
-                        if (settings.preferredScheme == "om") {
-                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(20.dp))
+                        OutlinedButton(
+                            onClick = { OrganicMapsLauncher.openUrl(context, OrganicMapsLauncher.FDROID_URL) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(50),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark),
+                            contentPadding = PaddingValues(vertical = 12.dp)
+                        ) {
+                            Text("F-Droid", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Surface(
-                    color = DarkSurfaceElevated,
-                    shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(
-                        if (settings.preferredScheme == "geo") 1.5.dp else 1.dp,
-                        if (settings.preferredScheme == "geo") EmeraldGreen else DarkBorder
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { onUpdateSettings(settings.copy(preferredScheme = "geo")) }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("geo: scheme", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimaryDark)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text("Standard Geo URI (system map handler)", fontSize = 12.sp, color = TextSecondaryDark)
-                        }
-                        if (settings.preferredScheme == "geo") {
-                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(20.dp))
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-                HorizontalDivider(color = DarkBorderSubtle)
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Store Links
-                Text("DOWNLOAD ORGANIC MAPS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondaryDark, letterSpacing = 0.8.sp)
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { OrganicMapsLauncher.openUrl(context, OrganicMapsLauncher.PLAY_STORE_URL) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(50),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
-                    ) {
-                        Text("Google Play", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    OutlinedButton(
-                        onClick = { OrganicMapsLauncher.openUrl(context, OrganicMapsLauncher.FDROID_URL) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(50),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
-                    ) {
-                        Text("F-Droid", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
