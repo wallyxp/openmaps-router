@@ -152,4 +152,33 @@ object OrganicMapsLauncher {
         }
         context.startActivity(chooser)
     }
+
+    fun openDefaultAppsSettings(context: Context) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            try {
+                val intent = Intent(
+                    android.provider.Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS,
+                    Uri.parse("package:" + context.packageName)
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                return
+            } catch (e: Exception) {
+                // Fallback to app details
+            }
+        }
+
+        try {
+            val intent = Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:" + context.packageName)
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Could not open system settings.", Toast.LENGTH_SHORT).show()
+        }
+    }
 }

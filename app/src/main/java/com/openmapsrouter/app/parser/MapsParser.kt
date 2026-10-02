@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLDecoder
+import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
@@ -41,26 +42,105 @@ object MapsParser {
         }
     }
 
-    fun extractDirectCoordinates(input: String): CoordinateResult? {
+    fun parseGeoOrNavigationUri(input: String): CoordinateResult? {
         val trimmed = input.trim()
 
-        // geo:37.7749,-122.4194
-        val geoPattern = Pattern.compile("^geo:(-?\\d+(?:\\.\\d+)?),\\s*(-?\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE)
-        val geoMatcher = geoPattern.matcher(trimmed)
-        if (geoMatcher.find()) {
-            val lat = geoMatcher.group(1)?.toDoubleOrNull()
-            val lon = geoMatcher.group(2)?.toDoubleOrNull()
-            if (lat != null && lon != null && isValidCoordinate(lat, lon)) {
-                return CoordinateResult(
-                    latitude = lat,
-                    longitude = lon,
-                    sourceMethod = SourceMethod.DIRECT_COORDS,
-                    originalUrl = trimmed
-                )
+        // Match geo:... or google.navigation:... or openmapsrouter:... anywhere in text or at start
+        val schemePattern = Pattern.compile("(?:geo|google\\.navigation|openmapsrouter):[^\\s\"'<>]+", Pattern.CASE_INSENSITIVE)
+        val schemeMatcher = schemePattern.matcher(trimmed)
+        val uriStr = if (schemeMatcher.find()) schemeMatcher.group(0) else {
+            if (trimmed.startsWith("geo:", ignoreCase = true) ||
+                trimmed.startsWith("google.navigation:", ignoreCase = true) ||
+                trimmed.startsWith("openmapsrouter:", ignoreCase = true)
+            ) {
+                trimmed
+            } else {
+                return null
             }
         }
 
-        // 37.774929, -122.419416 or 37.774929 -122.419416
+        var lat: Double? = null
+        var lon: Double? = null
+        var name: String? = null
+
+        val decodedUri = try {
+            URLDecoder.decode(uriStr, StandardCharsets.UTF_8.name())
+        } catch (e: Exception) {
+            uriStr
+        }
+
+        // 1. Extract label from parentheses if present, e.g. (Place+Name) or (Place Name)
+        val labelPattern = Pattern.compile("\\(([^)]+)\\)")
+        val labelMatcher = labelPattern.matcher(decodedUri)
+        if (labelMatcher.find()) {
+            name = cleanPlaceName(labelMatcher.group(1))
+        }
+
+        // 2. Coordinates in query params or navigation scheme: ?q=lat,lon, :q=lat,lon, ?ll=lat,lon
+        val qCoordPattern = Pattern.compile(
+            "[?&:=](?:q|ll|daddr|destination|center)=(-?\\d+(?:\\.\\d+)?)[,\\+](-?\\d+(?:\\.\\d+)?)",
+            Pattern.CASE_INSENSITIVE
+        )
+        val qMatcher = qCoordPattern.matcher(decodedUri)
+        if (qMatcher.find()) {
+            val qLat = qMatcher.group(1)?.toDoubleOrNull()
+            val qLon = qMatcher.group(2)?.toDoubleOrNull()
+            if (qLat != null && qLon != null && isValidCoordinate(qLat, qLon)) {
+                lat = qLat
+                lon = qLon
+            }
+        }
+
+        // 3. Coordinates directly in scheme path: geo:lat,lon or google.navigation:lat,lon or openmapsrouter://map?ll=lat,lon
+        if (lat == null || lon == null) {
+            val baseCoordPattern = Pattern.compile(
+                "(?:geo|google\\.navigation|openmapsrouter):/?/?(-?\\d+(?:\\.\\d+)?)[,\\s]+(-?\\d+(?:\\.\\d+)?)",
+                Pattern.CASE_INSENSITIVE
+            )
+            val baseMatcher = baseCoordPattern.matcher(decodedUri)
+            if (baseMatcher.find()) {
+                val bLat = baseMatcher.group(1)?.toDoubleOrNull()
+                val bLon = baseMatcher.group(2)?.toDoubleOrNull()
+                if (bLat != null && bLon != null && isValidCoordinate(bLat, bLon)) {
+                    lat = bLat
+                    lon = bLon
+                }
+            }
+        }
+
+        // 4. If name was not in parentheses, but there's a text ?q=Name query param (when lat,lon came from geo:lat,lon)
+        if (lat != null && lon != null && name == null) {
+            val textQPattern = Pattern.compile("[?&:=]q=([^&()]+)", Pattern.CASE_INSENSITIVE)
+            val textQMatcher = textQPattern.matcher(decodedUri)
+            if (textQMatcher.find()) {
+                val candidate = cleanPlaceName(textQMatcher.group(1))
+                if (candidate != null && !candidate.matches(Regex("^-?\\d+(\\.\\d+)?,\\s*-?\\d+(\\.\\d+)?$"))) {
+                    name = candidate
+                }
+            }
+        }
+
+        if (lat != null && lon != null && isValidCoordinate(lat, lon)) {
+            return CoordinateResult(
+                latitude = lat,
+                longitude = lon,
+                name = name,
+                sourceMethod = SourceMethod.DIRECT_COORDS,
+                originalUrl = trimmed
+            )
+        }
+
+        return null
+    }
+
+    fun extractDirectCoordinates(input: String): CoordinateResult? {
+        val trimmed = input.trim()
+
+        // 1. Check geo:, google.navigation:, or openmapsrouter: URIs
+        val fromUri = parseGeoOrNavigationUri(trimmed)
+        if (fromUri != null) return fromUri
+
+        // 2. Raw coordinates: 37.774929, -122.419416 or 37.774929 -122.419416
         val rawPattern = Pattern.compile("^(-?\\d{1,2}(?:\\.\\d+)?)[,\\s]+(-?\\d{1,3}(?:\\.\\d+)?)$")
         val rawMatcher = rawPattern.matcher(trimmed)
         if (rawMatcher.find()) {
@@ -313,11 +393,21 @@ object MapsParser {
         val direct = extractDirectCoordinates(trimmed)
         if (direct != null) return@withContext direct
 
-        // 2. Extract URL
+        // 2. Extract URL or fallback from geo: query
         var targetUrl = extractUrlFromText(trimmed)
         if (targetUrl == null) {
             if (trimmed.matches(Regex("^(maps\\.app\\.goo\\.gl|goo\\.gl|maps\\.google\\.|www\\.google\\.com/maps).*", RegexOption.IGNORE_CASE))) {
                 targetUrl = "https://$trimmed"
+            } else if (trimmed.startsWith("geo:", ignoreCase = true) || trimmed.startsWith("google.navigation:", ignoreCase = true)) {
+                val qPattern = Pattern.compile("[?&]q=([^&]+)", Pattern.CASE_INSENSITIVE)
+                val qMatcher = qPattern.matcher(trimmed)
+                if (qMatcher.find()) {
+                    val query = qMatcher.group(1).orEmpty()
+                    val cleaned = cleanPlaceName(query) ?: query
+                    targetUrl = "https://www.google.com/maps/search/?api=1&query=" + URLEncoder.encode(cleaned, StandardCharsets.UTF_8.name())
+                } else {
+                    throw IllegalArgumentException("Could not find valid coordinates in the geo link.")
+                }
             } else {
                 throw IllegalArgumentException("Could not find a valid Google Maps link or coordinates in the provided text.")
             }

@@ -35,29 +35,67 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Google Maps Deep Link Interceptor -->
+            <!-- Google Maps Deep Link Interceptor (Registers domains in Android 12+ Open by default) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 
                 <data android:scheme="https" android:host="maps.app.goo.gl" />
+                <data android:scheme="http" android:host="maps.app.goo.gl" />
                 <data android:scheme="https" android:host="goo.gl" android:pathPrefix="/maps" />
+                <data android:scheme="http" android:host="goo.gl" android:pathPrefix="/maps" />
                 <data android:scheme="https" android:host="maps.google.com" />
                 <data android:scheme="http" android:host="maps.google.com" />
                 <data android:scheme="https" android:host="www.google.com" android:pathPrefix="/maps" />
+                <data android:scheme="http" android:host="www.google.com" android:pathPrefix="/maps" />
+                <data android:scheme="https" android:host="google.com" android:pathPrefix="/maps" />
+                <data android:scheme="http" android:host="google.com" android:pathPrefix="/maps" />
             </intent-filter>
 
-            <!-- Custom Scheme & Geo Scheme -->
+            <!-- Standard Web links without autoVerify (Triggers app chooser popup in browsers & chat apps) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                
+                <data android:scheme="https" android:host="maps.app.goo.gl" />
+                <data android:scheme="http" android:host="maps.app.goo.gl" />
+                <data android:scheme="https" android:host="goo.gl" android:pathPrefix="/maps" />
+                <data android:scheme="http" android:host="goo.gl" android:pathPrefix="/maps" />
+                <data android:scheme="https" android:host="maps.google.com" />
+                <data android:scheme="http" android:host="maps.google.com" />
+                <data android:scheme="https" android:host="www.google.com" android:pathPrefix="/maps" />
+                <data android:scheme="http" android:host="www.google.com" android:pathPrefix="/maps" />
+                <data android:scheme="https" android:host="google.com" android:pathPrefix="/maps" />
+                <data android:scheme="http" android:host="google.com" android:pathPrefix="/maps" />
+            </intent-filter>
+
+            <!-- Geo Scheme Interceptor (Triggers when clicking map previews/results in Google App, browser geo: links, contacts) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="geo" />
+            </intent-filter>
+
+            <!-- Google Navigation Scheme Interceptor (Directions & turn-by-turn triggers) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="google.navigation" />
+            </intent-filter>
+
+            <!-- Custom OpenMapsRouter Scheme -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="openmapsrouter" />
-                <data android:scheme="geo" />
             </intent-filter>
 
-            <!-- Share Sheet Target (Share from Google Maps app) -->
+            <!-- Share Sheet Target (Share from Google Maps app or any text sharing app) -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />

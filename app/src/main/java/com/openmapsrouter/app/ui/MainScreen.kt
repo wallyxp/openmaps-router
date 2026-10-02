@@ -892,9 +892,15 @@ fun SettingsDialog(
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = SurfaceWhite,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -944,6 +950,32 @@ fun SettingsDialog(
                         onCheckedChange = { onUpdateSettings(settings.copy(keepHistory = it)) },
                         colors = SwitchDefaults.colors(checkedThumbColor = SurfaceWhite, checkedTrackColor = OrganicGreen)
                     )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = BorderSubtle)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Link Interception & System Defaults
+                Text("LINK INTERCEPTION (OPEN BY DEFAULT)", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.8.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "To prompt or automatically open maps.app.goo.gl links on Android 12+, enable supported links in system settings. Google app map previews will also offer OpenMapsRouter.",
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    lineHeight = 15.sp
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Button(
+                    onClick = { OrganicMapsLauncher.openDefaultAppsSettings(context) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Configure Default Links (Android 12+)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))

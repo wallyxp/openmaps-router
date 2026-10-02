@@ -7,6 +7,9 @@ val OrganicGreenDark = Color(0xFF1B5E20)
 val OrganicGreenLight = Color(0xFFE8F5E9)
 val OrganicGreenBorder = Color(0xFFC8E6C9)
 
+val PrimaryBlue = Color(0xFF2563EB)
+val PrimaryBlueLight = Color(0xFFEFF6FF)
+
 val Background = Color(0xFFF8FAFC)
 val SurfaceWhite = Color(0xFFFFFFFF)
 val TextPrimary = Color(0xFF1A202C)
