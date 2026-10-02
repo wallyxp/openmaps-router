@@ -1,12 +1,36 @@
-*.iml
-.gradle
-/local.properties
-/.idea/
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-app/build/
+# Built application files
+*.apk
+*.aar
+*.aab
+
+# Gradle build cache & outputs
+.gradle/
 build/
+*/build/
+
+# Local configuration & environment variables
+local.properties
+.env
+
+# Android Studio / IntelliJ IDEA project files
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Keystore files & credentials
+*.jks
+*.keystore
+google-services.json
+secrets.properties
+
+# Log files & OS metadata
+*.log
+.DS_Store
+Thumbs.db
+
+# Kotlin / Native / Navigation cache
+.kotlin/
+.navigation/
+captures/
