@@ -66,4 +66,19 @@ class MapsParserTest {
         assertEquals(37.7749, res5!!.latitude, 0.0001)
         assertEquals(-122.4194, res5.longitude, 0.0001)
     }
+
+    @Test
+    fun testPlaceSearchSuggestions() = runBlocking {
+        val suggestions = com.openmapsrouter.app.search.PlaceSearchService.fetchSuggestions("Starbucks Times Square")
+        println("Fetched suggestions count: ${suggestions.size}")
+        assertTrue("Should return suggestions for Starbucks Times Square", suggestions.isNotEmpty())
+        val first = suggestions.first()
+        println("First suggestion: name=${first.name}, address=${first.address}, lat=${first.latitude}, lon=${first.longitude}")
+        assertNotNull(first.name)
+        assertTrue(first.name.contains("Starbucks", ignoreCase = true))
+        assertNotNull(first.address)
+        assertTrue(first.address.isNotBlank())
+        assertNotNull(first.latitude)
+        assertNotNull(first.longitude)
+    }
 }

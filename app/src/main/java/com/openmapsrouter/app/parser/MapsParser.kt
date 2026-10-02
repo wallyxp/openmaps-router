@@ -307,9 +307,17 @@ object MapsParser {
             if (hexCellId != null) {
                 val decoded = S2Geometry.decodeCellIdHex(hexCellId)
                 if (decoded != null && isValidCoordinate(decoded.lat, decoded.lon)) {
+                    var title: String? = null
+                    val titlePattern = Pattern.compile("\\[\"0x[0-9a-fA-F]+:0x[0-9a-fA-F]+\",\"([^\"]+)\"")
+                    val titleMatcher = titlePattern.matcher(html)
+                    if (titleMatcher.find()) {
+                        title = cleanPlaceName(titleMatcher.group(1))
+                    }
+
                     return CoordinateResult(
                         latitude = decoded.lat,
                         longitude = decoded.lon,
+                        name = title,
                         sourceMethod = SourceMethod.PIN_EXACT,
                         originalUrl = originalUrl,
                         resolvedUrl = resolvedUrl
@@ -318,7 +326,32 @@ object MapsParser {
             }
         }
 
-        // 2. Staticmap center
+        // 2. Google Search Map JSON coordinates: [null,null,26.1939136,91.7678935]
+        val searchJsonPattern = Pattern.compile("\\[null,null,(-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)\\]")
+        val searchJsonMatcher = searchJsonPattern.matcher(html)
+        if (searchJsonMatcher.find()) {
+            val lat = searchJsonMatcher.group(1)?.toDoubleOrNull()
+            val lon = searchJsonMatcher.group(2)?.toDoubleOrNull()
+            if (lat != null && lon != null && isValidCoordinate(lat, lon)) {
+                var title: String? = null
+                val titlePattern = Pattern.compile("\\[\"0x[0-9a-fA-F]+:0x[0-9a-fA-F]+\",\"([^\"]+)\"")
+                val titleMatcher = titlePattern.matcher(html)
+                if (titleMatcher.find()) {
+                    title = cleanPlaceName(titleMatcher.group(1))
+                }
+
+                return CoordinateResult(
+                    latitude = lat,
+                    longitude = lon,
+                    name = title,
+                    sourceMethod = SourceMethod.PIN_EXACT,
+                    originalUrl = originalUrl,
+                    resolvedUrl = resolvedUrl
+                )
+            }
+        }
+
+        // 3. Staticmap center
         val centerPattern = Pattern.compile("staticmap\\?[^\"'>]*center=(-?\\d+(?:\\.\\d+)?)(?:%2C|,)(-?\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE)
         val centerMatcher = centerPattern.matcher(html)
         if (centerMatcher.find()) {
@@ -409,7 +442,8 @@ object MapsParser {
                     throw IllegalArgumentException("Could not find valid coordinates in the geo link.")
                 }
             } else {
-                throw IllegalArgumentException("Could not find a valid Google Maps link or coordinates in the provided text.")
+                // Direct text search query (e.g. "Taj Mahal" or "Hill-View Homestay Guwahati")
+                targetUrl = "https://www.google.com/search?tbm=map&q=" + URLEncoder.encode(trimmed, StandardCharsets.UTF_8.name())
             }
         }
 
@@ -463,6 +497,13 @@ object MapsParser {
                         val fromHtml = parseCoordinatesFromHtml(bodyText, safeTargetUrl, currentUrl)
                         if (fromHtml != null) {
                             var title = fromHtml.name
+                            if (title == null) {
+                                val jsonTitlePattern = Pattern.compile("\\[\"0x[0-9a-fA-F]+:0x[0-9a-fA-F]+\",\"([^\"]+)\"")
+                                val jsonTitleMatcher = jsonTitlePattern.matcher(bodyText)
+                                if (jsonTitleMatcher.find()) {
+                                    title = cleanPlaceName(jsonTitleMatcher.group(1))
+                                }
+                            }
                             if (title == null) {
                                 val titlePattern = Pattern.compile("<title>([^<]+)</title>", Pattern.CASE_INSENSITIVE)
                                 val titleMatcher = titlePattern.matcher(bodyText)

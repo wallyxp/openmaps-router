@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -22,6 +24,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,6 +33,7 @@ import com.openmapsrouter.app.data.AppSettings
 import com.openmapsrouter.app.data.CoordinateResult
 import com.openmapsrouter.app.data.HistoryItem
 import com.openmapsrouter.app.data.SourceMethod
+import com.openmapsrouter.app.search.PlaceSuggestion
 import com.openmapsrouter.app.ui.theme.*
 import com.openmapsrouter.app.utils.OrganicMapsLauncher
 import java.util.Locale
@@ -49,6 +53,14 @@ private val SAMPLE_LINKS = listOf(
 
 @Composable
 fun MainScreen(
+    activeTab: Int,
+    onTabChange: (Int) -> Unit,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    suggestions: List<PlaceSuggestion>,
+    isSearching: Boolean,
+    onSelectSuggestion: (PlaceSuggestion) -> Unit,
+    onPerformSearch: (String) -> Unit,
     inputUrl: String,
     onInputUrlChange: (String) -> Unit,
     currentResult: CoordinateResult?,
@@ -93,6 +105,7 @@ fun MainScreen(
                 ClipboardBanner(
                     url = clipboardUrl,
                     onConvert = {
+                        onTabChange(1)
                         onInputUrlChange(clipboardUrl)
                         onDismissClipboard()
                         onDeriveCoordinates(clipboardUrl)
@@ -101,26 +114,44 @@ fun MainScreen(
                 )
             }
 
-            // Input Card
-            InputCard(
-                inputUrl = inputUrl,
-                onInputUrlChange = onInputUrlChange,
-                isLoading = isLoading,
-                onSubmit = { onDeriveCoordinates(inputUrl) },
-                onPaste = {
-                    val clip = clipboardManager.getText()?.text
-                    if (!clip.isNullOrBlank()) {
-                        onInputUrlChange(clip.trim())
-                    }
-                },
-                onClear = {
-                    onInputUrlChange("")
-                },
-                onSelectSample = { sample ->
-                    onInputUrlChange(sample)
-                    onDeriveCoordinates(sample)
-                }
+            // Mode Selector Tabs (Search Places vs Convert Link)
+            ModeTabBar(
+                activeTab = activeTab,
+                onTabChange = onTabChange
             )
+
+            // Active Tab Content
+            if (activeTab == 0) {
+                SearchPlacesCard(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = onSearchQueryChange,
+                    suggestions = suggestions,
+                    isSearching = isSearching,
+                    isLoading = isLoading,
+                    onSelectSuggestion = onSelectSuggestion,
+                    onPerformSearch = onPerformSearch
+                )
+            } else {
+                InputCard(
+                    inputUrl = inputUrl,
+                    onInputUrlChange = onInputUrlChange,
+                    isLoading = isLoading,
+                    onSubmit = { onDeriveCoordinates(inputUrl) },
+                    onPaste = {
+                        val clip = clipboardManager.getText()?.text
+                        if (!clip.isNullOrBlank()) {
+                            onInputUrlChange(clip.trim())
+                        }
+                    },
+                    onClear = {
+                        onInputUrlChange("")
+                    },
+                    onSelectSample = { sample ->
+                        onInputUrlChange(sample)
+                        onDeriveCoordinates(sample)
+                    }
+                )
+            }
 
             // Error banner
             if (errorMessage != null) {
@@ -235,6 +266,280 @@ fun MainScreen(
 }
 
 @Composable
+fun ModeTabBar(
+    activeTab: Int,
+    onTabChange: (Int) -> Unit
+) {
+    Surface(
+        color = SurfaceWhite,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp)
+        ) {
+            // Tab 0: Search Places
+            Surface(
+                color = if (activeTab == 0) OrganicGreenLight else Color.Transparent,
+                shape = RoundedCornerShape(8.dp),
+                border = if (activeTab == 0) androidx.compose.foundation.BorderStroke(1.dp, OrganicGreenBorder) else null,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onTabChange(0) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = null,
+                        tint = if (activeTab == 0) OrganicGreen else TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Search Places",
+                        fontSize = 13.sp,
+                        fontWeight = if (activeTab == 0) FontWeight.Bold else FontWeight.Medium,
+                        color = if (activeTab == 0) OrganicGreen else TextSecondary
+                    )
+                }
+            }
+
+            // Tab 1: Convert Link
+            Surface(
+                color = if (activeTab == 1) OrganicGreenLight else Color.Transparent,
+                shape = RoundedCornerShape(8.dp),
+                border = if (activeTab == 1) androidx.compose.foundation.BorderStroke(1.dp, OrganicGreenBorder) else null,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onTabChange(1) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Link,
+                        contentDescription = null,
+                        tint = if (activeTab == 1) OrganicGreen else TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Convert Link",
+                        fontSize = 13.sp,
+                        fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Medium,
+                        color = if (activeTab == 1) OrganicGreen else TextSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SearchPlacesCard(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    suggestions: List<PlaceSuggestion>,
+    isSearching: Boolean,
+    isLoading: Boolean,
+    onSelectSuggestion: (PlaceSuggestion) -> Unit,
+    onPerformSearch: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Search Google Maps Places",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                if (isSearching) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = OrganicGreen
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Search input field
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                placeholder = {
+                    Text(
+                        "Search place, business, address (e.g. Starbucks, Taj Mahal)...",
+                        fontSize = 13.sp,
+                        color = TextMuted
+                    )
+                },
+                leadingIcon = {
+                    Icon(Icons.Filled.Search, contentDescription = "Search", tint = OrganicGreen)
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { onSearchQueryChange("") }, modifier = Modifier.size(26.dp)) {
+                            Icon(Icons.Filled.Cancel, contentDescription = "Clear", tint = TextMuted, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Search
+                ),
+                keyboardActions = KeyboardActions(
+                    onSearch = { onPerformSearch(searchQuery) }
+                ),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = OrganicGreen,
+                    unfocusedBorderColor = BorderLight,
+                    focusedContainerColor = Background,
+                    unfocusedContainerColor = Background
+                )
+            )
+
+            // Live Suggestions Dropdown List
+            if (suggestions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    color = Background,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                        suggestions.forEachIndexed { index, suggestion ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelectSuggestion(suggestion) }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(OrganicGreenLight),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.LocationOn,
+                                        contentDescription = null,
+                                        tint = OrganicGreen,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = suggestion.name,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = suggestion.address,
+                                        fontSize = 12.sp,
+                                        color = TextSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            if (index < suggestions.lastIndex) {
+                                HorizontalDivider(color = BorderSubtle, modifier = Modifier.padding(horizontal = 12.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Quick Samples when query is empty
+            if (searchQuery.isEmpty() && suggestions.isEmpty()) {
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = BorderSubtle)
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "Popular Places to Search:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextSecondary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val sampleQueries = listOf(
+                        "🗼 Eiffel Tower Paris",
+                        "🌉 Golden Gate Bridge",
+                        "🗽 Statue of Liberty",
+                        "🕌 Taj Mahal Agra",
+                        "☕ Starbucks Times Square",
+                        "🚉 Guwahati Railway Station"
+                    )
+                    sampleQueries.forEach { sample ->
+                        Surface(
+                            color = Color(0xFFF1F5F9),
+                            shape = RoundedCornerShape(20.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
+                            modifier = Modifier.clickable {
+                                onSearchQueryChange(sample.substring(2).trim())
+                            }
+                        ) {
+                            Text(
+                                text = sample,
+                                fontSize = 11.sp,
+                                color = TextPrimary,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun Header(onOpenSettings: () -> Unit) {
     Surface(
         color = SurfaceWhite,
@@ -300,13 +605,12 @@ fun Header(onOpenSettings: () -> Unit) {
             IconButton(
                 onClick = onOpenSettings,
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(38.dp)
                     .clip(CircleShape)
                     .background(Background)
-                    .border(1.dp, BorderLight, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Settings,
+                    imageVector = Icons.Filled.Settings,
                     contentDescription = "Settings",
                     tint = TextSecondary,
                     modifier = Modifier.size(20.dp)
@@ -325,7 +629,7 @@ fun ClipboardBanner(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = OrganicGreenLight),
         shape = RoundedCornerShape(12.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, OrganicGreenBorder)
@@ -397,7 +701,7 @@ fun InputCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
         shape = RoundedCornerShape(16.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
@@ -519,9 +823,8 @@ fun InputCard(
                     ) {
                         Text(
                             text = sample.label,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF475569),
+                            fontSize = 11.sp,
+                            color = TextPrimary,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
@@ -536,15 +839,28 @@ fun ErrorCard(message: String) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         colors = CardDefaults.cardColors(containerColor = ErrorBg),
         shape = RoundedCornerShape(12.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, ErrorBorder)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text("Could not derive coordinates", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ErrorText)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(message, fontSize = 12.sp, color = Color(0xFF9B2C2C))
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ErrorOutline,
+                contentDescription = null,
+                tint = ErrorText,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = message,
+                fontSize = 13.sp,
+                color = ErrorText,
+                lineHeight = 18.sp
+            )
         }
     }
 }
@@ -560,14 +876,6 @@ fun ResultCard(
     onOpenOsm: () -> Unit,
     onShare: () -> Unit
 ) {
-    val methodColor = when (result.sourceMethod) {
-        SourceMethod.PIN_EXACT -> Pair(OrganicGreen, OrganicGreenLight)
-        SourceMethod.CAMERA_VIEW -> Pair(Color(0xFF0277BD), Color(0xFFE1F5FE))
-        SourceMethod.QUERY_PARAM -> Pair(Color(0xFF6A1B9A), Color(0xFFF3E5F5))
-        SourceMethod.HTML_META -> Pair(Color(0xFFE65100), Color(0xFFFFF3E0))
-        SourceMethod.DIRECT_COORDS -> Pair(Color(0xFF37474F), Color(0xFFECEFF1))
-    }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -575,138 +883,134 @@ fun ResultCard(
         colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
         shape = RoundedCornerShape(16.dp),
         border = androidx.compose.foundation.BorderStroke(1.5.dp, OrganicGreenBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
-            // Top Row
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(OrganicGreenLight),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = OrganicGreen,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = result.name ?: "Pinned Location",
-                        fontSize = 18.sp,
+                        text = "Location Derived",
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Surface(
-                        color = methodColor.second,
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = methodColor.first, modifier = Modifier.size(12.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(result.sourceMethod.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = methodColor.first)
-                        }
+                }
+
+                Surface(
+                    color = OrganicGreenLight,
+                    shape = RoundedCornerShape(6.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, OrganicGreenBorder)
+                ) {
+                    Text(
+                        text = result.sourceMethod.label,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OrganicGreenDark,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Place Name (if present)
+            if (!result.name.isNullOrBlank()) {
+                Text(
+                    text = result.name,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = TextPrimary,
+                    lineHeight = 22.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Coordinates Box
+            Surface(
+                color = Background,
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("LATITUDE", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.5.sp)
+                        Text(
+                            text = String.format(Locale.US, "%.6f°", result.latitude),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(32.dp)
+                            .background(BorderLight)
+                    )
+
+                    Column {
+                        Text("LONGITUDE", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.5.sp)
+                        Text(
+                            text = String.format(Locale.US, "%.6f°", result.longitude),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary,
+                            fontFamily = FontFamily.Monospace
+                        )
                     }
                 }
-
-                IconButton(
-                    onClick = onShare,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Background)
-                        .border(1.dp, BorderLight, CircleShape)
-                ) {
-                    Icon(Icons.Outlined.Share, contentDescription = "Share", tint = TextSecondary, modifier = Modifier.size(18.dp))
-                }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Coords Grid
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Background, RoundedCornerShape(12.dp))
-                    .border(1.dp, BorderLight, RoundedCornerShape(12.dp))
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("LATITUDE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSecondary, letterSpacing = 0.8.sp)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        String.format(Locale.US, "%.6f°", result.latitude),
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = FontFamily.Monospace,
-                        color = TextPrimary
-                    )
-                    Text(
-                        String.format(Locale.US, "%.8f", result.latitude),
-                        fontSize = 11.sp,
-                        color = TextMuted,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .height(45.dp)
-                        .background(BorderLight)
-                )
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("LONGITUDE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSecondary, letterSpacing = 0.8.sp)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        String.format(Locale.US, "%.6f°", result.longitude),
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = FontFamily.Monospace,
-                        color = TextPrimary
-                    )
-                    Text(
-                        String.format(Locale.US, "%.8f", result.longitude),
-                        fontSize = 11.sp,
-                        color = TextMuted,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // PRIMARY BUTTON: Open in Organic Maps
+            // Big CTA: Open in Organic Maps
             Button(
                 onClick = onOpenOrganicMaps,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(14.dp),
+                    .height(52.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = OrganicGreen)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Icon(Icons.Filled.Navigation, contentDescription = null, modifier = Modifier.size(24.dp))
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Open in Organic Maps", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
-                        Text(
-                            String.format(Locale.US, "%s://map?ll=%.4f,%.4f", preferredScheme, result.latitude, result.longitude),
-                            fontSize = 11.sp,
-                            color = OrganicGreenBorder,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                    Icon(Icons.Filled.ArrowCircleRight, contentDescription = null, modifier = Modifier.size(24.dp))
-                }
+                Icon(Icons.Filled.Navigation, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Open in Organic Maps",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Secondary Action Row
+            // Action Buttons Row 1: Copy Coordinates & Copy OM Link
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -714,45 +1018,59 @@ fun ResultCard(
                 OutlinedButton(
                     onClick = onCopyCoords,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Coords", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Copy Coords", fontSize = 12.sp)
                 }
 
                 OutlinedButton(
                     onClick = onCopyOmLink,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("om://", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Copy om://", fontSize = 12.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Action Buttons Row 2: Share, System Map, OSM Web
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onShare,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Share", fontSize = 12.sp)
                 }
 
                 OutlinedButton(
                     onClick = onOpenSystem,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Outlined.Map, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Outlined.Place, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("System", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text("System Map", fontSize = 12.sp)
                 }
 
                 OutlinedButton(
                     onClick = onOpenOsm,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Outlined.Public, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Outlined.Public, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("OSM", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text("OSM Web", fontSize = 12.sp)
                 }
             }
         }
@@ -769,111 +1087,94 @@ fun HistorySection(
     onDeleteItem: (String) -> Unit,
     onClearAll: () -> Unit
 ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.History, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Recent Conversions", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                Spacer(modifier = Modifier.width(6.dp))
-                Surface(color = BorderSubtle, shape = RoundedCornerShape(10.dp)) {
-                    Text(
-                        "${items.size}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.dp)
-                    )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.History, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Recent Locations", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
+                TextButton(onClick = onClearAll, contentPadding = PaddingValues(0.dp)) {
+                    Text("Clear All", fontSize = 12.sp, color = TextSecondary)
                 }
             }
 
-            TextButton(onClick = onClearAll) {
-                Text("Clear All", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFE53E3E))
-            }
-        }
+            Spacer(modifier = Modifier.height(10.dp))
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        items.forEach { item ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .clickable { onSelectItem(item) },
-                colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight)
-            ) {
+            items.take(8).forEachIndexed { index, item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .clickable { onSelectItem(item) }
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            item.name ?: "Pinned Location",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            String.format(Locale.US, "%.5f°, %.5f°", item.latitude, item.longitude),
-                            fontSize = 12.sp,
-                            color = TextSecondary,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Button(
-                            onClick = { onOpenItem(item) },
-                            colors = ButtonDefaults.buttonColors(containerColor = OrganicGreen),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Icon(Icons.Filled.Navigation, contentDescription = null, modifier = Modifier.size(12.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Open", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-
-                        IconButton(
-                            onClick = { onCopyItem(item) },
+                        Box(
                             modifier = Modifier
-                                .size(32.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Background)
-                                .border(1.dp, BorderLight, RoundedCornerShape(6.dp))
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(OrganicGreenLight),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy", tint = TextSecondary, modifier = Modifier.size(15.dp))
+                            Icon(
+                                imageVector = Icons.Filled.Place,
+                                contentDescription = null,
+                                tint = OrganicGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
-
-                        IconButton(
-                            onClick = { onDeleteItem(item.id) },
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFFFF5F5))
-                                .border(1.dp, Color(0xFFFED7D7), RoundedCornerShape(6.dp))
-                        ) {
-                            Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = Color(0xFFE53E3E), modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = item.name ?: String.format(Locale.US, "%.5f, %.5f", item.latitude, item.longitude),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = String.format(Locale.US, "%.5f, %.5f", item.latitude, item.longitude),
+                                fontSize = 11.sp,
+                                color = TextSecondary,
+                                fontFamily = FontFamily.Monospace
+                            )
                         }
                     }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { onOpenItem(item) }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Filled.Navigation, contentDescription = "Open", tint = OrganicGreen, modifier = Modifier.size(18.dp))
+                        }
+                        IconButton(onClick = { onCopyItem(item) }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        }
+                        IconButton(onClick = { onDeleteItem(item.id) }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = TextMuted, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+
+                if (index < items.take(8).lastIndex) {
+                    HorizontalDivider(color = BorderSubtle)
                 }
             }
         }
@@ -977,6 +1278,38 @@ fun SettingsDialog(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Configure Default Links (Android 12+)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = BorderSubtle)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Search Provider / API Key
+                Text("SEARCH PROVIDER (OPTIONAL GOOGLE API KEY)", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.8.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Free live place search works out of the box with zero setup. If you have a Google Cloud Places API key, you can enter it here to search directly from Google's proprietary Places database.",
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    lineHeight = 15.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                var apiKeyInput by remember { mutableStateOf(settings.googleApiKey) }
+                OutlinedTextField(
+                    value = apiKeyInput,
+                    onValueChange = {
+                        apiKeyInput = it
+                        onUpdateSettings(settings.copy(googleApiKey = it.trim()))
+                    },
+                    placeholder = { Text("AIzaSy... (leave blank for free search)", fontSize = 12.sp, color = TextMuted) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = OrganicGreen,
+                        unfocusedBorderColor = BorderLight
+                    )
+                )
 
                 Spacer(modifier = Modifier.height(14.dp))
                 HorizontalDivider(color = BorderSubtle)

@@ -14,15 +14,25 @@ import com.openmapsrouter.app.data.CoordinateResult
 import com.openmapsrouter.app.data.HistoryItem
 import com.openmapsrouter.app.data.StorageManager
 import com.openmapsrouter.app.parser.MapsParser
+import com.openmapsrouter.app.search.PlaceSearchService
+import com.openmapsrouter.app.search.PlaceSuggestion
 import com.openmapsrouter.app.ui.MainScreen
 import com.openmapsrouter.app.ui.theme.OpenMapsRouterTheme
 import com.openmapsrouter.app.utils.OrganicMapsLauncher
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var storageManager: StorageManager
     private var lastCheckedClipboard: String = ""
+
+    private var activeTabState = mutableStateOf(0) // 0: Search Places, 1: Convert Link
+    private var searchQueryState = mutableStateOf("")
+    private var suggestionsState = mutableStateOf<List<PlaceSuggestion>>(emptyList())
+    private var isSearchingState = mutableStateOf(false)
+    private var searchJob: Job? = null
 
     private var inputUrlState = mutableStateOf("")
     private var currentResultState = mutableStateOf<CoordinateResult?>(null)
@@ -45,6 +55,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             OpenMapsRouterTheme {
                 MainScreen(
+                    activeTab = activeTabState.value,
+                    onTabChange = { activeTabState.value = it },
+                    searchQuery = searchQueryState.value,
+                    onSearchQueryChange = { onSearchQueryChanged(it) },
+                    suggestions = suggestionsState.value,
+                    isSearching = isSearchingState.value,
+                    onSelectSuggestion = { onSuggestionSelected(it) },
+                    onPerformSearch = { onPerformSearch(it) },
                     inputUrl = inputUrlState.value,
                     onInputUrlChange = {
                         inputUrlState.value = it
@@ -100,6 +118,7 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_VIEW -> {
                 val data = intent.dataString
                 if (!data.isNullOrBlank()) {
+                    activeTabState.value = 1
                     inputUrlState.value = data
                     processCoordinates(data)
                 }
@@ -108,6 +127,7 @@ class MainActivity : ComponentActivity() {
                 if (intent.type == "text/plain") {
                     val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
                     if (!sharedText.isNullOrBlank()) {
+                        activeTabState.value = 1
                         inputUrlState.value = sharedText
                         processCoordinates(sharedText)
                     }
@@ -143,6 +163,72 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun onSearchQueryChanged(query: String) {
+        searchQueryState.value = query
+        searchJob?.cancel()
+
+        if (query.trim().length < 2) {
+            suggestionsState.value = emptyList()
+            isSearchingState.value = false
+            return
+        }
+
+        isSearchingState.value = true
+        searchJob = lifecycleScope.launch {
+            delay(280) // Debounce typing
+            try {
+                val results = PlaceSearchService.fetchSuggestions(
+                    query = query,
+                    apiKey = settingsState.value.googleApiKey.ifBlank { null }
+                )
+                suggestionsState.value = results
+            } catch (e: Exception) {
+                suggestionsState.value = emptyList()
+            } finally {
+                isSearchingState.value = false
+            }
+        }
+    }
+
+    private fun onSuggestionSelected(suggestion: PlaceSuggestion) {
+        suggestionsState.value = emptyList()
+        searchQueryState.value = suggestion.name
+        isLoadingState.value = true
+        errorMessageState.value = null
+
+        lifecycleScope.launch {
+            try {
+                val result = PlaceSearchService.resolvePlaceDetails(
+                    suggestion = suggestion,
+                    apiKey = settingsState.value.googleApiKey.ifBlank { null }
+                )
+                currentResultState.value = result
+
+                if (settingsState.value.keepHistory) {
+                    historyState.value = storageManager.addHistoryItem(result)
+                }
+
+                if (settingsState.value.autoOpenOrganicMaps) {
+                    OrganicMapsLauncher.launchOrganicMaps(
+                        context = this@MainActivity,
+                        result = result,
+                        preferredScheme = settingsState.value.preferredScheme
+                    )
+                }
+            } catch (e: Exception) {
+                errorMessageState.value = e.message ?: "Could not resolve coordinates for this location."
+            } finally {
+                isLoadingState.value = false
+            }
+        }
+    }
+
+    private fun onPerformSearch(query: String) {
+        suggestionsState.value = emptyList()
+        if (query.isBlank()) return
+        processCoordinates(query)
+    }
+
     private fun processCoordinates(rawText: String) {
         if (rawText.isBlank()) return
 
@@ -166,7 +252,7 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             } catch (e: Exception) {
-                errorMessageState.value = e.message ?: "Could not parse coordinates from the given link."
+                errorMessageState.value = e.message ?: "Could not find coordinates for this location."
             } finally {
                 isLoadingState.value = false
             }

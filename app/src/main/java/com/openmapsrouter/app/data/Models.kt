@@ -42,5 +42,6 @@ data class HistoryItem(
 data class AppSettings(
     val autoOpenOrganicMaps: Boolean = false,
     val preferredScheme: String = "om", // "om" or "geo"
-    val keepHistory: Boolean = true
+    val keepHistory: Boolean = true,
+    val googleApiKey: String = ""
 )
