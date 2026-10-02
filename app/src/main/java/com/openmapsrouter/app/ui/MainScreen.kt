@@ -32,7 +32,6 @@ import androidx.compose.ui.window.Dialog
 import com.openmapsrouter.app.data.AppSettings
 import com.openmapsrouter.app.data.CoordinateResult
 import com.openmapsrouter.app.data.HistoryItem
-import com.openmapsrouter.app.data.SourceMethod
 import com.openmapsrouter.app.search.PlaceSuggestion
 import com.openmapsrouter.app.ui.theme.*
 import com.openmapsrouter.app.utils.OrganicMapsLauncher
@@ -87,7 +86,7 @@ fun MainScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(DarkBackground)
     ) {
         // Top Header with status bar padding
         Header(
@@ -114,7 +113,7 @@ fun MainScreen(
                 )
             }
 
-            // Mode Selector Tabs (Search Places vs Convert Link)
+            // Mode Selector Segmented Tabs
             ModeTabBar(
                 activeTab = activeTab,
                 onTabChange = onTabChange
@@ -216,9 +215,23 @@ fun MainScreen(
     if (showNotInstalledDialog) {
         AlertDialog(
             onDismissRequest = { showNotInstalledDialog = false },
-            title = { Text("Organic Maps Not Found", fontWeight = FontWeight.Bold) },
+            containerColor = DarkSurface,
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    "Organic Maps Not Found",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = TextPrimaryDark
+                )
+            },
             text = {
-                Text("Organic Maps is not installed on this device. Would you like to download it from the store?")
+                Text(
+                    "Organic Maps is not installed on this device. Would you like to download it from the store?",
+                    color = TextSecondaryDark,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
             },
             confirmButton = {
                 Button(
@@ -226,14 +239,19 @@ fun MainScreen(
                         showNotInstalledDialog = false
                         OrganicMapsLauncher.openUrl(context, OrganicMapsLauncher.PLAY_STORE_URL)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = OrganicGreen)
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PureWhite,
+                        contentColor = PureBlack
+                    ),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
                 ) {
-                    Text("Download from Play Store")
+                    Text("Download from Store", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showNotInstalledDialog = false }) {
-                    Text("Cancel", color = TextSecondary)
+                    Text("Cancel", color = TextSecondaryDark, fontSize = 14.sp)
                 }
             }
         )
@@ -243,22 +261,43 @@ fun MainScreen(
     if (showConfirmClearDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmClearDialog = false },
-            title = { Text("Clear History", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to clear all converted location history?") },
+            containerColor = DarkSurface,
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    "Clear History",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = TextPrimaryDark
+                )
+            },
+            text = {
+                Text(
+                    "Are you sure you want to clear all converted location history?",
+                    color = TextSecondaryDark,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         showConfirmClearDialog = false
                         onClearAllHistory()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53E3E))
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ErrorDarkText,
+                        contentColor = PureWhite
+                    ),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
                 ) {
-                    Text("Clear All")
+                    Text("Clear All", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmClearDialog = false }) {
-                    Text("Cancel", color = TextSecondary)
+                    Text("Cancel", color = TextSecondaryDark, fontSize = 14.sp)
                 }
             }
         )
@@ -271,12 +310,12 @@ fun ModeTabBar(
     onTabChange: (Int) -> Unit
 ) {
     Surface(
-        color = SurfaceWhite,
+        color = DarkSurface,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(50),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
     ) {
         Row(
             modifier = Modifier
@@ -285,60 +324,60 @@ fun ModeTabBar(
         ) {
             // Tab 0: Search Places
             Surface(
-                color = if (activeTab == 0) OrganicGreenLight else Color.Transparent,
-                shape = RoundedCornerShape(8.dp),
-                border = if (activeTab == 0) androidx.compose.foundation.BorderStroke(1.dp, OrganicGreenBorder) else null,
+                color = if (activeTab == 0) PureWhite else Color.Transparent,
+                shape = RoundedCornerShape(50),
                 modifier = Modifier
                     .weight(1f)
+                    .clip(RoundedCornerShape(50))
                     .clickable { onTabChange(0) }
             ) {
                 Row(
-                    modifier = Modifier.padding(vertical = 10.dp),
+                    modifier = Modifier.padding(vertical = 12.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Search,
                         contentDescription = null,
-                        tint = if (activeTab == 0) OrganicGreen else TextSecondary,
+                        tint = if (activeTab == 0) PureBlack else TextSecondaryDark,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Search Places",
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         fontWeight = if (activeTab == 0) FontWeight.Bold else FontWeight.Medium,
-                        color = if (activeTab == 0) OrganicGreen else TextSecondary
+                        color = if (activeTab == 0) PureBlack else TextSecondaryDark
                     )
                 }
             }
 
             // Tab 1: Convert Link
             Surface(
-                color = if (activeTab == 1) OrganicGreenLight else Color.Transparent,
-                shape = RoundedCornerShape(8.dp),
-                border = if (activeTab == 1) androidx.compose.foundation.BorderStroke(1.dp, OrganicGreenBorder) else null,
+                color = if (activeTab == 1) PureWhite else Color.Transparent,
+                shape = RoundedCornerShape(50),
                 modifier = Modifier
                     .weight(1f)
+                    .clip(RoundedCornerShape(50))
                     .clickable { onTabChange(1) }
             ) {
                 Row(
-                    modifier = Modifier.padding(vertical = 10.dp),
+                    modifier = Modifier.padding(vertical = 12.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Link,
                         contentDescription = null,
-                        tint = if (activeTab == 1) OrganicGreen else TextSecondary,
+                        tint = if (activeTab == 1) PureBlack else TextSecondaryDark,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Convert Link",
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Medium,
-                        color = if (activeTab == 1) OrganicGreen else TextSecondary
+                        color = if (activeTab == 1) PureBlack else TextSecondaryDark
                     )
                 }
             }
@@ -359,53 +398,57 @@ fun SearchPlacesCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        shape = RoundedCornerShape(22.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Search Google Maps Places",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    text = "Search Location",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimaryDark
                 )
                 if (isSearching) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
-                        color = OrganicGreen
+                        color = PureWhite
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Search input field
+            // Pill-shaped search input field
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
                 placeholder = {
                     Text(
-                        "Search place, business, address (e.g. Starbucks, Taj Mahal)...",
-                        fontSize = 13.sp,
-                        color = TextMuted
+                        "Search place, store, or address...",
+                        fontSize = 14.sp,
+                        color = TextSecondaryDark
                     )
                 },
                 leadingIcon = {
-                    Icon(Icons.Filled.Search, contentDescription = "Search", tint = OrganicGreen)
+                    Icon(
+                        Icons.Filled.Search,
+                        contentDescription = "Search",
+                        tint = TextSecondaryDark,
+                        modifier = Modifier.size(20.dp)
+                    )
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchQueryChange("") }, modifier = Modifier.size(26.dp)) {
-                            Icon(Icons.Filled.Cancel, contentDescription = "Clear", tint = TextMuted, modifier = Modifier.size(18.dp))
+                        IconButton(onClick = { onSearchQueryChange("") }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Filled.Cancel, contentDescription = "Clear", tint = TextSecondaryDark, modifier = Modifier.size(18.dp))
                         }
                     }
                 },
@@ -417,22 +460,25 @@ fun SearchPlacesCard(
                     onSearch = { onPerformSearch(searchQuery) }
                 ),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(50),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = OrganicGreen,
-                    unfocusedBorderColor = BorderLight,
-                    focusedContainerColor = Background,
-                    unfocusedContainerColor = Background
+                    focusedBorderColor = PureWhite,
+                    unfocusedBorderColor = DarkBorder,
+                    focusedContainerColor = DarkSurfaceElevated,
+                    unfocusedContainerColor = DarkSurfaceElevated,
+                    focusedTextColor = TextPrimaryDark,
+                    unfocusedTextColor = TextPrimaryDark,
+                    cursorColor = PureWhite
                 )
             )
 
-            // Live Suggestions Dropdown List
+            // Live Suggestions Dropdown
             if (suggestions.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Surface(
-                    color = Background,
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
+                    color = DarkSurfaceElevated,
+                    shape = RoundedCornerShape(18.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
@@ -441,32 +487,33 @@ fun SearchPlacesCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { onSelectSuggestion(suggestion) }
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
+                                        .size(36.dp)
                                         .clip(CircleShape)
-                                        .background(OrganicGreenLight),
+                                        .background(EmeraldGreenContainer)
+                                        .border(1.dp, EmeraldGreenBorder, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.LocationOn,
                                         contentDescription = null,
-                                        tint = OrganicGreen,
-                                        modifier = Modifier.size(20.dp)
+                                        tint = EmeraldGreen,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(14.dp))
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = suggestion.name,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextPrimary,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextPrimaryDark,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -474,7 +521,8 @@ fun SearchPlacesCard(
                                     Text(
                                         text = suggestion.address,
                                         fontSize = 12.sp,
-                                        color = TextSecondary,
+                                        fontWeight = FontWeight.Normal,
+                                        color = TextSecondaryDark,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -482,7 +530,7 @@ fun SearchPlacesCard(
                             }
 
                             if (index < suggestions.lastIndex) {
-                                HorizontalDivider(color = BorderSubtle, modifier = Modifier.padding(horizontal = 12.dp))
+                                HorizontalDivider(color = DarkBorderSubtle, modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     }
@@ -491,17 +539,18 @@ fun SearchPlacesCard(
 
             // Quick Samples when query is empty
             if (searchQuery.isEmpty() && suggestions.isEmpty()) {
-                Spacer(modifier = Modifier.height(14.dp))
-                HorizontalDivider(color = BorderSubtle)
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(18.dp))
+                HorizontalDivider(color = DarkBorderSubtle)
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Popular Places to Search:",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextSecondary
+                    text = "POPULAR LOCATIONS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextSecondaryDark,
+                    letterSpacing = 0.8.sp
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -518,18 +567,21 @@ fun SearchPlacesCard(
                     )
                     sampleQueries.forEach { sample ->
                         Surface(
-                            color = Color(0xFFF1F5F9),
-                            shape = RoundedCornerShape(20.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
-                            modifier = Modifier.clickable {
-                                onSearchQueryChange(sample.substring(2).trim())
-                            }
+                            color = DarkSurfaceElevated,
+                            shape = RoundedCornerShape(50),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .clickable {
+                                    onSearchQueryChange(sample.substring(2).trim())
+                                }
                         ) {
                             Text(
                                 text = sample,
-                                fontSize = 11.sp,
-                                color = TextPrimary,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = TextPrimaryDark,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                             )
                         }
                     }
@@ -542,31 +594,31 @@ fun SearchPlacesCard(
 @Composable
 fun Header(onOpenSettings: () -> Unit) {
     Surface(
-        color = SurfaceWhite,
-        modifier = Modifier.fillMaxWidth(),
-        shadowElevation = 2.dp
+        color = DarkBackground,
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(42.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(OrganicGreen),
+                        .background(DarkSurfaceElevated)
+                        .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Map,
                         contentDescription = "Map Icon",
-                        tint = SurfaceWhite,
-                        modifier = Modifier.size(24.dp)
+                        tint = PureWhite,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -574,30 +626,30 @@ fun Header(onOpenSettings: () -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "OpenMapsRouter",
-                            fontSize = 19.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = TextPrimaryDark
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Surface(
-                            color = OrganicGreenLight,
-                            shape = RoundedCornerShape(6.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, OrganicGreenBorder)
+                            color = EmeraldGreenContainer,
+                            shape = RoundedCornerShape(50),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreenBorder)
                         ) {
                             Text(
                                 text = "OM",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = OrganicGreen,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                color = EmeraldGreen,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                             )
                         }
                     }
                     Text(
                         text = "Google Maps → Organic Maps",
                         fontSize = 12.sp,
-                        color = TextSecondary,
-                        fontWeight = FontWeight.Medium
+                        color = TextSecondaryDark,
+                        fontWeight = FontWeight.Normal
                     )
                 }
             }
@@ -605,15 +657,16 @@ fun Header(onOpenSettings: () -> Unit) {
             IconButton(
                 onClick = onOpenSettings,
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
-                    .background(Background)
+                    .background(DarkSurfaceElevated)
+                    .border(1.dp, DarkBorder, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Settings,
                     contentDescription = "Settings",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(20.dp)
+                    tint = PureWhite,
+                    modifier = Modifier.size(19.dp)
                 )
             }
         }
@@ -630,42 +683,43 @@ fun ClipboardBanner(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = OrganicGreenLight),
-        shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, OrganicGreenBorder)
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated),
+        shape = RoundedCornerShape(18.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreenBorder)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
-                    .background(OrganicGreenBorder),
+                    .background(EmeraldGreenContainer)
+                    .border(1.dp, EmeraldGreenBorder, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.ContentPaste,
                     contentDescription = null,
-                    tint = OrganicGreen,
+                    tint = EmeraldGreen,
                     modifier = Modifier.size(18.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Google Maps link found",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = OrganicGreenDark
+                    color = PureWhite
                 )
                 Text(
                     text = url,
                     fontSize = 11.sp,
-                    color = OrganicGreen,
+                    color = EmeraldGreen,
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -674,15 +728,18 @@ fun ClipboardBanner(
             Spacer(modifier = Modifier.width(8.dp))
             Button(
                 onClick = onConvert,
-                colors = ButtonDefaults.buttonColors(containerColor = OrganicGreen),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(32.dp)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PureWhite,
+                    contentColor = PureBlack
+                ),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.height(34.dp)
             ) {
                 Text("Convert", fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
             IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Filled.Close, contentDescription = "Dismiss", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.Close, contentDescription = "Dismiss", tint = TextSecondaryDark, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -701,13 +758,12 @@ fun InputCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        shape = RoundedCornerShape(22.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             // Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -716,35 +772,38 @@ fun InputCard(
             ) {
                 Text(
                     text = "Google Maps Link",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimaryDark
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = OrganicGreenLight,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.clickable { onPaste() }
+                        color = DarkSurfaceElevated,
+                        shape = RoundedCornerShape(50),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onPaste() }
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Icon(Icons.Outlined.ContentPaste, contentDescription = null, tint = OrganicGreen, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Outlined.ContentPaste, contentDescription = null, tint = PureWhite, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Paste", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = OrganicGreen)
+                            Text("Paste", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PureWhite)
                         }
                     }
                     if (inputUrl.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        IconButton(onClick = onClear, modifier = Modifier.size(26.dp)) {
-                            Icon(Icons.Filled.Cancel, contentDescription = "Clear", tint = TextMuted, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(onClick = onClear, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Filled.Cancel, contentDescription = "Clear", tint = TextSecondaryDark, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Input field
             OutlinedTextField(
@@ -754,60 +813,67 @@ fun InputCard(
                     Text(
                         "Paste maps.app.goo.gl link, Google Maps URL, or lat,lon...",
                         fontSize = 13.sp,
-                        color = TextMuted
+                        color = TextSecondaryDark,
+                        lineHeight = 18.sp
                     )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 80.dp),
-                shape = RoundedCornerShape(12.dp),
+                    .heightIn(min = 84.dp),
+                shape = RoundedCornerShape(18.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = OrganicGreen,
-                    unfocusedBorderColor = BorderLight,
-                    focusedContainerColor = Background,
-                    unfocusedContainerColor = Background
+                    focusedBorderColor = PureWhite,
+                    unfocusedBorderColor = DarkBorder,
+                    focusedContainerColor = DarkSurfaceElevated,
+                    unfocusedContainerColor = DarkSurfaceElevated,
+                    focusedTextColor = TextPrimaryDark,
+                    unfocusedTextColor = TextPrimaryDark,
+                    cursorColor = PureWhite
                 ),
                 maxLines = 3
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Derive Button
+            // Primary CTA Button: Pill-shaped Pure White with bold Black text
             Button(
                 onClick = onSubmit,
                 enabled = inputUrl.isNotBlank() && !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
+                    .height(52.dp),
+                shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OrganicGreen,
-                    disabledContainerColor = BorderLight
+                    containerColor = PureWhite,
+                    contentColor = PureBlack,
+                    disabledContainerColor = DarkSurfaceElevated,
+                    disabledContentColor = TextMutedDark
                 )
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(color = SurfaceWhite, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = PureBlack, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("Resolving & Deriving...", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text("Resolving & Deriving...", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = PureBlack)
                 } else {
-                    Icon(Icons.Filled.Explore, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Explore, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (inputUrl.isNotBlank()) PureBlack else TextMutedDark)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Derive Coordinates", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text("Derive Coordinates", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (inputUrl.isNotBlank()) PureBlack else TextMutedDark)
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-            HorizontalDivider(color = BorderSubtle)
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(18.dp))
+            HorizontalDivider(color = DarkBorderSubtle)
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Quick Samples
             Text(
-                text = "Quick Samples to Try:",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextSecondary
+                text = "QUICK SAMPLES TO TRY",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextSecondaryDark,
+                letterSpacing = 0.8.sp
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -816,16 +882,19 @@ fun InputCard(
             ) {
                 SAMPLE_LINKS.forEach { sample ->
                     Surface(
-                        color = Color(0xFFF1F5F9),
-                        shape = RoundedCornerShape(20.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
-                        modifier = Modifier.clickable { onSelectSample(sample.url) }
+                        color = DarkSurfaceElevated,
+                        shape = RoundedCornerShape(50),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onSelectSample(sample.url) }
                     ) {
                         Text(
                             text = sample.label,
-                            fontSize = 11.sp,
-                            color = TextPrimary,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimaryDark,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                         )
                     }
                 }
@@ -840,25 +909,25 @@ fun ErrorCard(message: String) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = ErrorBg),
-        shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, ErrorBorder)
+        colors = CardDefaults.cardColors(containerColor = ErrorDarkBg),
+        shape = RoundedCornerShape(18.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, ErrorDarkBorder)
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Filled.ErrorOutline,
                 contentDescription = null,
-                tint = ErrorText,
+                tint = ErrorDarkText,
                 modifier = Modifier.size(22.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = message,
                 fontSize = 13.sp,
-                color = ErrorText,
+                color = ErrorDarkText,
                 lineHeight = 18.sp
             )
         }
@@ -880,13 +949,12 @@ fun ResultCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, OrganicGreenBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        shape = RoundedCornerShape(24.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            // Header
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Status Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -897,73 +965,75 @@ fun ResultCard(
                         modifier = Modifier
                             .size(34.dp)
                             .clip(CircleShape)
-                            .background(OrganicGreenLight),
+                            .background(EmeraldGreenContainer)
+                            .border(1.dp, EmeraldGreenBorder, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.CheckCircle,
+                            imageVector = Icons.Filled.Check,
                             contentDescription = null,
-                            tint = OrganicGreen,
-                            modifier = Modifier.size(20.dp)
+                            tint = EmeraldGreen,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Location Derived",
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimaryDark
                     )
                 }
 
                 Surface(
-                    color = OrganicGreenLight,
-                    shape = RoundedCornerShape(6.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, OrganicGreenBorder)
+                    color = EmeraldGreenContainer,
+                    shape = RoundedCornerShape(50),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreenBorder)
                 ) {
                     Text(
                         text = result.sourceMethod.label,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = OrganicGreenDark,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        color = EmeraldGreen,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Place Name (if present)
             if (!result.name.isNullOrBlank()) {
                 Text(
                     text = result.name,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = TextPrimary,
-                    lineHeight = 22.sp
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimaryDark,
+                    lineHeight = 24.sp
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Coordinates Box
+            // High-Contrast Coordinates Box
             Surface(
-                color = Background,
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
+                color = DarkSurfaceElevated,
+                shape = RoundedCornerShape(18.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier.padding(14.dp),
+                    modifier = Modifier.padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("LATITUDE", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.5.sp)
+                        Text("LATITUDE", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = TextSecondaryDark, letterSpacing = 0.5.sp)
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = String.format(Locale.US, "%.6f°", result.latitude),
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimaryDark,
                             fontFamily = FontFamily.Monospace
                         )
                     }
@@ -971,46 +1041,51 @@ fun ResultCard(
                     Box(
                         modifier = Modifier
                             .width(1.dp)
-                            .height(32.dp)
-                            .background(BorderLight)
+                            .height(36.dp)
+                            .background(DarkBorderSubtle)
                     )
 
                     Column {
-                        Text("LONGITUDE", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.5.sp)
+                        Text("LONGITUDE", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = TextSecondaryDark, letterSpacing = 0.5.sp)
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = String.format(Locale.US, "%.6f°", result.longitude),
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimaryDark,
                             fontFamily = FontFamily.Monospace
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Big CTA: Open in Organic Maps
+            // Primary CTA: Solid Pure White Pill Button with Bold Black Text
             Button(
                 onClick = onOpenOrganicMaps,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = OrganicGreen)
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PureWhite,
+                    contentColor = PureBlack
+                )
             ) {
-                Icon(Icons.Filled.Navigation, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.Navigation, contentDescription = null, modifier = Modifier.size(19.dp), tint = PureBlack)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Open in Organic Maps",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PureBlack
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action Buttons Row 1: Copy Coordinates & Copy OM Link
+            // Secondary Action Buttons Row 1: Copy Coordinates & Copy OM Link
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1018,27 +1093,31 @@ fun ResultCard(
                 OutlinedButton(
                     onClick = onCopyCoords,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(50),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                 ) {
-                    Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Copy Coords", fontSize = 12.sp)
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(15.dp), tint = TextPrimaryDark)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Copy Coords", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
 
                 OutlinedButton(
                     onClick = onCopyOmLink,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(50),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                 ) {
-                    Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Copy om://", fontSize = 12.sp)
+                    Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(15.dp), tint = TextPrimaryDark)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Copy om://", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action Buttons Row 2: Share, System Map, OSM Web
+            // Secondary Action Buttons Row 2: Share, System Map, OSM Web
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1046,31 +1125,37 @@ fun ResultCard(
                 OutlinedButton(
                     onClick = onShare,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(50),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                 ) {
-                    Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(15.dp), tint = TextPrimaryDark)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Share", fontSize = 12.sp)
+                    Text("Share", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
 
                 OutlinedButton(
                     onClick = onOpenSystem,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(50),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                 ) {
-                    Icon(Icons.Outlined.Place, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.Place, contentDescription = null, modifier = Modifier.size(15.dp), tint = TextPrimaryDark)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("System Map", fontSize = 12.sp)
+                    Text("System", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
 
                 OutlinedButton(
                     onClick = onOpenOsm,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(50),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                 ) {
-                    Icon(Icons.Outlined.Public, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.Public, contentDescription = null, modifier = Modifier.size(15.dp), tint = TextPrimaryDark)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("OSM Web", fontSize = 12.sp)
+                    Text("OSM", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -1091,24 +1176,23 @@ fun HistorySection(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderLight),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        shape = RoundedCornerShape(22.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.History, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Recent Locations", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Icon(Icons.Outlined.History, contentDescription = null, tint = TextPrimaryDark, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Recent Locations", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimaryDark)
                 }
                 TextButton(onClick = onClearAll, contentPadding = PaddingValues(0.dp)) {
-                    Text("Clear All", fontSize = 12.sp, color = TextSecondary)
+                    Text("Clear All", fontSize = 12.sp, color = TextSecondaryDark, fontWeight = FontWeight.Medium)
                 }
             }
 
@@ -1118,8 +1202,9 @@ fun HistorySection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable { onSelectItem(item) }
-                        .padding(vertical = 10.dp),
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -1131,30 +1216,32 @@ fun HistorySection(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(OrganicGreenLight),
+                                .background(DarkSurfaceElevated)
+                                .border(1.dp, DarkBorder, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Place,
                                 contentDescription = null,
-                                tint = OrganicGreen,
+                                tint = EmeraldGreen,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = item.name ?: String.format(Locale.US, "%.5f, %.5f", item.latitude, item.longitude),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimaryDark,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = String.format(Locale.US, "%.5f, %.5f", item.latitude, item.longitude),
                                 fontSize = 11.sp,
-                                color = TextSecondary,
+                                color = TextSecondaryDark,
                                 fontFamily = FontFamily.Monospace
                             )
                         }
@@ -1162,19 +1249,19 @@ fun HistorySection(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { onOpenItem(item) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Filled.Navigation, contentDescription = "Open", tint = OrganicGreen, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Filled.Navigation, contentDescription = "Open", tint = PureWhite, modifier = Modifier.size(17.dp))
                         }
                         IconButton(onClick = { onCopyItem(item) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy", tint = TextSecondaryDark, modifier = Modifier.size(16.dp))
                         }
                         IconButton(onClick = { onDeleteItem(item.id) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = TextMuted, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = TextMutedDark, modifier = Modifier.size(16.dp))
                         }
                     }
                 }
 
                 if (index < items.take(8).lastIndex) {
-                    HorizontalDivider(color = BorderSubtle)
+                    HorizontalDivider(color = DarkBorderSubtle)
                 }
             }
         }
@@ -1191,15 +1278,16 @@ fun SettingsDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = SurfaceWhite,
+            shape = RoundedCornerShape(24.dp),
+            color = DarkSurface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 24.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(22.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 Row(
@@ -1207,17 +1295,24 @@ fun SettingsDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Settings & Configuration", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Filled.Close, contentDescription = "Close", tint = TextSecondary)
+                    Text("Settings", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimaryDark)
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(DarkSurfaceElevated)
+                            .border(1.dp, DarkBorder, CircleShape)
+                    ) {
+                        Icon(Icons.Filled.Close, contentDescription = "Close", tint = TextSecondaryDark, modifier = Modifier.size(16.dp))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 // Automation
-                Text("BEHAVIOR", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.8.sp)
-                Spacer(modifier = Modifier.height(8.dp))
+                Text("AUTOMATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondaryDark, letterSpacing = 0.8.sp)
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1225,17 +1320,24 @@ fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Auto-Open Organic Maps", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                        Text("Immediately launch Organic Maps after deriving", fontSize = 11.sp, color = TextSecondary)
+                        Text("Auto-Open Organic Maps", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimaryDark)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("Immediately launch Organic Maps after deriving", fontSize = 12.sp, color = TextSecondaryDark)
                     }
                     Switch(
                         checked = settings.autoOpenOrganicMaps,
                         onCheckedChange = { onUpdateSettings(settings.copy(autoOpenOrganicMaps = it)) },
-                        colors = SwitchDefaults.colors(checkedThumbColor = SurfaceWhite, checkedTrackColor = OrganicGreen)
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = PureWhite,
+                            checkedTrackColor = EmeraldGreen,
+                            uncheckedThumbColor = TextSecondaryDark,
+                            uncheckedTrackColor = DarkSurfaceElevated,
+                            uncheckedBorderColor = DarkBorder
+                        )
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1243,56 +1345,68 @@ fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Save History", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                        Text("Store recent places locally", fontSize = 11.sp, color = TextSecondary)
+                        Text("Save History", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimaryDark)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("Store recent places locally", fontSize = 12.sp, color = TextSecondaryDark)
                     }
                     Switch(
                         checked = settings.keepHistory,
                         onCheckedChange = { onUpdateSettings(settings.copy(keepHistory = it)) },
-                        colors = SwitchDefaults.colors(checkedThumbColor = SurfaceWhite, checkedTrackColor = OrganicGreen)
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = PureWhite,
+                            checkedTrackColor = EmeraldGreen,
+                            uncheckedThumbColor = TextSecondaryDark,
+                            uncheckedTrackColor = DarkSurfaceElevated,
+                            uncheckedBorderColor = DarkBorder
+                        )
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-                HorizontalDivider(color = BorderSubtle)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(18.dp))
+                HorizontalDivider(color = DarkBorderSubtle)
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Link Interception & System Defaults
-                Text("LINK INTERCEPTION (OPEN BY DEFAULT)", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.8.sp)
-                Spacer(modifier = Modifier.height(4.dp))
+                Text("LINK INTERCEPTION (OPEN BY DEFAULT)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondaryDark, letterSpacing = 0.8.sp)
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     "To prompt or automatically open maps.app.goo.gl links on Android 12+, enable supported links in system settings. Google app map previews will also offer OpenMapsRouter.",
-                    fontSize = 11.sp,
-                    color = TextSecondary,
-                    lineHeight = 15.sp
+                    fontSize = 12.sp,
+                    color = TextSecondaryDark,
+                    lineHeight = 16.sp
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Button(
                     onClick = { OrganicMapsLauncher.openDefaultAppsSettings(context) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                    shape = RoundedCornerShape(10.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PureWhite,
+                        contentColor = PureBlack
+                    ),
+                    shape = RoundedCornerShape(50)
                 ) {
-                    Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Configure Default Links (Android 12+)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(16.dp), tint = PureBlack)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Configure Default Links (Android 12+)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PureBlack)
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-                HorizontalDivider(color = BorderSubtle)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(18.dp))
+                HorizontalDivider(color = DarkBorderSubtle)
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Search Provider / API Key
-                Text("SEARCH PROVIDER (OPTIONAL GOOGLE API KEY)", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.8.sp)
-                Spacer(modifier = Modifier.height(4.dp))
+                Text("SEARCH PROVIDER (OPTIONAL GOOGLE API KEY)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondaryDark, letterSpacing = 0.8.sp)
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     "Free live place search works out of the box with zero setup. If you have a Google Cloud Places API key, you can enter it here to search directly from Google's proprietary Places database.",
-                    fontSize = 11.sp,
-                    color = TextSecondary,
-                    lineHeight = 15.sp
+                    fontSize = 12.sp,
+                    color = TextSecondaryDark,
+                    lineHeight = 16.sp
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 var apiKeyInput by remember { mutableStateOf(settings.googleApiKey) }
                 OutlinedTextField(
@@ -1301,85 +1415,94 @@ fun SettingsDialog(
                         apiKeyInput = it
                         onUpdateSettings(settings.copy(googleApiKey = it.trim()))
                     },
-                    placeholder = { Text("AIzaSy... (leave blank for free search)", fontSize = 12.sp, color = TextMuted) },
+                    placeholder = { Text("AIzaSy... (leave blank for free search)", fontSize = 12.sp, color = TextMutedDark) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(50),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrganicGreen,
-                        unfocusedBorderColor = BorderLight
+                        focusedBorderColor = PureWhite,
+                        unfocusedBorderColor = DarkBorder,
+                        focusedContainerColor = DarkSurfaceElevated,
+                        unfocusedContainerColor = DarkSurfaceElevated,
+                        focusedTextColor = TextPrimaryDark,
+                        unfocusedTextColor = TextPrimaryDark,
+                        cursorColor = PureWhite
                     )
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
-                HorizontalDivider(color = BorderSubtle)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(18.dp))
+                HorizontalDivider(color = DarkBorderSubtle)
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Scheme Choice
-                Text("URL SCHEME", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.8.sp)
-                Spacer(modifier = Modifier.height(8.dp))
+                Text("URL SCHEME", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondaryDark, letterSpacing = 0.8.sp)
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Surface(
-                    color = if (settings.preferredScheme == "om") OrganicGreenLight else Background,
-                    shape = RoundedCornerShape(10.dp),
+                    color = DarkSurfaceElevated,
+                    shape = RoundedCornerShape(16.dp),
                     border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        if (settings.preferredScheme == "om") OrganicGreenBorder else BorderLight
+                        if (settings.preferredScheme == "om") 1.5.dp else 1.dp,
+                        if (settings.preferredScheme == "om") EmeraldGreen else DarkBorder
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable { onUpdateSettings(settings.copy(preferredScheme = "om")) }
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("om:// scheme (Recommended)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                            Text("Directly targets Organic Maps application", fontSize = 11.sp, color = TextSecondary)
+                            Text("om:// scheme (Recommended)", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimaryDark)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("Directly targets Organic Maps application", fontSize = 12.sp, color = TextSecondaryDark)
                         }
                         if (settings.preferredScheme == "om") {
-                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = OrganicGreen, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Surface(
-                    color = if (settings.preferredScheme == "geo") OrganicGreenLight else Background,
-                    shape = RoundedCornerShape(10.dp),
+                    color = DarkSurfaceElevated,
+                    shape = RoundedCornerShape(16.dp),
                     border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        if (settings.preferredScheme == "geo") OrganicGreenBorder else BorderLight
+                        if (settings.preferredScheme == "geo") 1.5.dp else 1.dp,
+                        if (settings.preferredScheme == "geo") EmeraldGreen else DarkBorder
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable { onUpdateSettings(settings.copy(preferredScheme = "geo")) }
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("geo: scheme", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                            Text("Standard Geo URI (system map handler)", fontSize = 11.sp, color = TextSecondary)
+                            Text("geo: scheme", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimaryDark)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("Standard Geo URI (system map handler)", fontSize = 12.sp, color = TextSecondaryDark)
                         }
                         if (settings.preferredScheme == "geo") {
-                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = OrganicGreen, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-                HorizontalDivider(color = BorderSubtle)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(18.dp))
+                HorizontalDivider(color = DarkBorderSubtle)
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Store Links
-                Text("DOWNLOAD ORGANIC MAPS", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = TextSecondary, letterSpacing = 0.8.sp)
-                Spacer(modifier = Modifier.height(8.dp))
+                Text("DOWNLOAD ORGANIC MAPS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondaryDark, letterSpacing = 0.8.sp)
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1388,16 +1511,20 @@ fun SettingsDialog(
                     OutlinedButton(
                         onClick = { OrganicMapsLauncher.openUrl(context, OrganicMapsLauncher.PLAY_STORE_URL) },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(50),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                     ) {
-                        Text("Google Play", fontSize = 11.sp)
+                        Text("Google Play", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     OutlinedButton(
                         onClick = { OrganicMapsLauncher.openUrl(context, OrganicMapsLauncher.FDROID_URL) },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(50),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimaryDark)
                     ) {
-                        Text("F-Droid", fontSize = 11.sp)
+                        Text("F-Droid", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
