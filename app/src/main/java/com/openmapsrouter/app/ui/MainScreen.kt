@@ -39,19 +39,6 @@ import com.openmapsrouter.app.ui.theme.*
 import com.openmapsrouter.app.utils.OrganicMapsLauncher
 import java.util.Locale
 
-private data class SampleLink(val label: String, val url: String)
-
-private val SAMPLE_LINKS = listOf(
-    SampleLink("🗼 Eiffel Tower", "https://www.google.com/maps/place/Eiffel+Tower/@48.8583701,2.2944813,17z"),
-    SampleLink(
-        "🌉 Golden Gate",
-        "https://www.google.com/maps/place/Golden+Gate+Bridge/@37.8199286,-122.4804438,17z/data=!3m1!4b1!4m6!3m5!1s0x808586de63b85841:0xbf00e706b3c2a64d!8m2!3d37.8199286!4d-122.478667"
-    ),
-    SampleLink("🗽 Statue of Liberty", "https://maps.google.com/?q=Statue+of+Liberty@40.689249,-74.044500"),
-    SampleLink("⛩️ Fushimi Inari", "https://www.google.com/maps/@34.967140,135.772671,16z"),
-    SampleLink("📍 Direct Coords", "51.500729, -0.124625")
-)
-
 @Composable
 fun MainScreen(
     activeTab: Int,
@@ -156,10 +143,6 @@ fun MainScreen(
                     },
                     onClear = {
                         onInputUrlChange("")
-                    },
-                    onSelectSample = { sample ->
-                        onInputUrlChange(sample)
-                        onDeriveCoordinates(sample)
                     }
                 )
             }
@@ -664,8 +647,7 @@ fun InputCard(
     isLoading: Boolean,
     onSubmit: () -> Unit,
     onPaste: () -> Unit,
-    onClear: () -> Unit,
-    onSelectSample: (String) -> Unit
+    onClear: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -770,45 +752,6 @@ fun InputCard(
                     Icon(Icons.Filled.Explore, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (inputUrl.isNotBlank()) PureBlack else TextMutedDark)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Derive Coordinates", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (inputUrl.isNotBlank()) PureBlack else TextMutedDark)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-            HorizontalDivider(color = DarkBorderSubtle)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Quick Samples
-            Text(
-                text = "QUICK SAMPLES TO TRY",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextSecondaryDark,
-                letterSpacing = 0.8.sp
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SAMPLE_LINKS.forEach { sample ->
-                    Surface(
-                        color = DarkSurfaceElevated,
-                        shape = RoundedCornerShape(50),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .clickable { onSelectSample(sample.url) }
-                    ) {
-                        Text(
-                            text = sample.label,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = TextPrimaryDark,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                        )
-                    }
                 }
             }
         }
