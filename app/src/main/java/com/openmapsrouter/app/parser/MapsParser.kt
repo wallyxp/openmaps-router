@@ -13,11 +13,11 @@ import java.util.regex.Pattern
 
 object MapsParser {
 
-    private val httpClient = OkHttpClient.Builder()
+    private val manualClient = OkHttpClient.Builder()
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(12, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .followSslRedirects(true)
+        .followRedirects(false)
+        .followSslRedirects(false)
         .build()
 
     fun isValidCoordinate(lat: Double, lon: Double): Boolean {
@@ -124,7 +124,24 @@ object MapsParser {
             }
         }
 
-        // 2. Camera viewpoint: /@<lat>,<lon>
+        // 2. Google Maps S2 Cell ID in place URL: !1s(0x[0-9a-fA-F]+):0x[0-9a-fA-F]+
+        if (lat == null || lon == null) {
+            val s2Pattern = Pattern.compile("(?:!1s|!3m1!1s)?(0x[0-9a-fA-F]{12,16}):0x[0-9a-fA-F]+")
+            val s2Matcher = s2Pattern.matcher(url)
+            if (s2Matcher.find()) {
+                val hexCellId = s2Matcher.group(1)
+                if (hexCellId != null) {
+                    val decoded = S2Geometry.decodeCellIdHex(hexCellId)
+                    if (decoded != null && isValidCoordinate(decoded.lat, decoded.lon)) {
+                        lat = decoded.lat
+                        lon = decoded.lon
+                        sourceMethod = SourceMethod.PIN_EXACT
+                    }
+                }
+            }
+        }
+
+        // 3. Camera viewpoint: /@<lat>,<lon>
         if (lat == null || lon == null) {
             val atPattern = Pattern.compile("@(-?\\d+(?:\\.\\d+)?),\\s*(-?\\d+(?:\\.\\d+)?)")
             val atMatcher = atPattern.matcher(url)
@@ -139,7 +156,7 @@ object MapsParser {
             }
         }
 
-        // 3. Query params: q=lat,lon or query=lat,lon or ll=lat,lon or daddr=lat,lon
+        // 4. Query params: q=lat,lon or query=lat,lon or ll=lat,lon or daddr=lat,lon
         if (lat == null || lon == null) {
             val qPattern = Pattern.compile(
                 "[?&](?:q|query|ll|sll|daddr|saddr|destination|origin|center)=(-?\\d+(?:\\.\\d+)?)[,\\+](-?\\d+(?:\\.\\d+)?)",
@@ -157,7 +174,7 @@ object MapsParser {
             }
         }
 
-        // 4. Query with place@lat,lon: ?q=Place+Name@lat,lon
+        // 5. Query with place@lat,lon: ?q=Place+Name@lat,lon
         if (lat == null || lon == null) {
             val atQueryPattern = Pattern.compile("[?&]q=[^&]*@(-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE)
             val atQueryMatcher = atQueryPattern.matcher(url)
@@ -172,7 +189,7 @@ object MapsParser {
             }
         }
 
-        // 5. Path coordinates: /search/lat,lon or /dir//lat,lon
+        // 6. Path coordinates: /search/lat,lon or /dir//lat,lon
         if (lat == null || lon == null) {
             val pathPattern = Pattern.compile("/(?:search|dir/?/?)?/?(-?\\d+(?:\\.\\d+)?),\\s*\\+?(-?\\d+(?:\\.\\d+)?)")
             val pathMatcher = pathPattern.matcher(url)
@@ -202,7 +219,26 @@ object MapsParser {
     }
 
     fun parseCoordinatesFromHtml(html: String, originalUrl: String, resolvedUrl: String?): CoordinateResult? {
-        // 1. Staticmap center
+        // 1. S2 Cell ID in HTML scripts or JSON state: "0x375a5932a2e8ec67:0x320ac9eeba86df0b"
+        val s2HtmlPattern = Pattern.compile("[\"'](0x[0-9a-fA-F]{12,16}):0x[0-9a-fA-F]+[\"']")
+        val s2HtmlMatcher = s2HtmlPattern.matcher(html)
+        if (s2HtmlMatcher.find()) {
+            val hexCellId = s2HtmlMatcher.group(1)
+            if (hexCellId != null) {
+                val decoded = S2Geometry.decodeCellIdHex(hexCellId)
+                if (decoded != null && isValidCoordinate(decoded.lat, decoded.lon)) {
+                    return CoordinateResult(
+                        latitude = decoded.lat,
+                        longitude = decoded.lon,
+                        sourceMethod = SourceMethod.PIN_EXACT,
+                        originalUrl = originalUrl,
+                        resolvedUrl = resolvedUrl
+                    )
+                }
+            }
+        }
+
+        // 2. Staticmap center
         val centerPattern = Pattern.compile("staticmap\\?[^\"'>]*center=(-?\\d+(?:\\.\\d+)?)(?:%2C|,)(-?\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE)
         val centerMatcher = centerPattern.matcher(html)
         if (centerMatcher.find()) {
@@ -219,7 +255,7 @@ object MapsParser {
             }
         }
 
-        // 2. Staticmap markers
+        // 3. Staticmap markers
         val markerPattern = Pattern.compile("staticmap\\?[^\"'>]*markers=(?:[^&]*%7C)?(-?\\d+(?:\\.\\d+)?)(?:%2C|,)(-?\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE)
         val markerMatcher = markerPattern.matcher(html)
         if (markerMatcher.find()) {
@@ -236,7 +272,7 @@ object MapsParser {
             }
         }
 
-        // 3. og:url or canonical link
+        // 4. og:url or canonical link
         val ogPattern = Pattern.compile("<meta[^>]+property=[\"']og:url[\"'][^>]+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE)
         val ogMatcher = ogPattern.matcher(html)
         if (ogMatcher.find()) {
@@ -247,7 +283,7 @@ object MapsParser {
             }
         }
 
-        // 4. Protobuf in scripts: !3d<lat>!4d<lon>
+        // 5. Protobuf in scripts: !3d<lat>!4d<lon>
         val protoPattern = Pattern.compile("!3d(-?\\d+(?:\\.\\d+)?).*?!4d(-?\\d+(?:\\.\\d+)?)")
         val protoMatcher = protoPattern.matcher(html)
         if (protoMatcher.find()) {
@@ -298,46 +334,71 @@ object MapsParser {
             return@withContext directFromUrl
         }
 
-        // 4. Network fetch / Follow redirects
+        val safeTargetUrl = targetUrl ?: throw IllegalArgumentException("Target URL cannot be null")
+        var currentUrl: String = safeTargetUrl
+        var finalResult: CoordinateResult? = null
+
         try {
-            val request = Request.Builder()
-                .url(targetUrl)
-                .header(
-                    "User-Agent",
-                    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
-                )
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                .build()
+            for (hop in 0 until 6) {
+                val requestBuilder = Request.Builder().url(currentUrl)
 
-            httpClient.newCall(request).execute().use { response ->
-                val finalUrl = response.request.url.toString()
-
-                // Check final redirected URL
-                val fromFinalUrl = parseCoordinatesFromUrlString(finalUrl, targetUrl)
-                if (fromFinalUrl != null) {
-                    return@withContext fromFinalUrl.copy(resolvedUrl = finalUrl)
+                if (!currentUrl.contains("maps.app.goo.gl", ignoreCase = true)) {
+                    requestBuilder.header(
+                        "User-Agent",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    )
+                    requestBuilder.header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                    requestBuilder.header("Accept-Language", "en-US,en;q=0.9")
                 }
 
-                // If not in URL, read HTML body
-                val bodyText = response.body?.string().orEmpty()
-                val fromHtml = parseCoordinatesFromHtml(bodyText, targetUrl, finalUrl)
-                if (fromHtml != null) {
-                    var title = fromHtml.name
-                    if (title == null) {
-                        val titlePattern = Pattern.compile("<title>([^<]+)</title>", Pattern.CASE_INSENSITIVE)
-                        val titleMatcher = titlePattern.matcher(bodyText)
-                        if (titleMatcher.find()) {
-                            val candidate = titleMatcher.group(1)
-                                ?.replace(" - Google Maps", "", ignoreCase = true)
-                                ?.replace(" - Google", "", ignoreCase = true)
-                                ?.trim()
-                            if (!candidate.isNullOrBlank() && !candidate.equals("Google Maps", ignoreCase = true)) {
-                                title = candidate
+                manualClient.newCall(requestBuilder.build()).execute().use { response ->
+                    val code = response.code
+                    val locationHeader = response.header("Location")
+
+                    if (locationHeader != null && (code in 300..399)) {
+                        val fromLocation = parseCoordinatesFromUrlString(locationHeader, safeTargetUrl)
+                        if (fromLocation != null) {
+                            finalResult = fromLocation.copy(resolvedUrl = locationHeader)
+                            return@use
+                        }
+                        currentUrl = locationHeader
+                    } else if (code in 200..299) {
+                        val fromCurrentUrl = parseCoordinatesFromUrlString(currentUrl, safeTargetUrl)
+                        if (fromCurrentUrl != null) {
+                            finalResult = fromCurrentUrl.copy(resolvedUrl = currentUrl)
+                            return@use
+                        }
+
+                        val bodyText = response.body?.string().orEmpty()
+                        val fromHtml = parseCoordinatesFromHtml(bodyText, safeTargetUrl, currentUrl)
+                        if (fromHtml != null) {
+                            var title = fromHtml.name
+                            if (title == null) {
+                                val titlePattern = Pattern.compile("<title>([^<]+)</title>", Pattern.CASE_INSENSITIVE)
+                                val titleMatcher = titlePattern.matcher(bodyText)
+                                if (titleMatcher.find()) {
+                                    val candidate = titleMatcher.group(1)
+                                        ?.replace(" - Google Maps", "", ignoreCase = true)
+                                        ?.replace(" - Google", "", ignoreCase = true)
+                                        ?.trim()
+                                    if (!candidate.isNullOrBlank() && !candidate.equals("Google Maps", ignoreCase = true)) {
+                                        title = candidate
+                                    }
+                                }
                             }
+                            finalResult = fromHtml.copy(name = title)
+                            return@use
                         }
                     }
-                    return@withContext fromHtml.copy(name = title)
                 }
+
+                if (finalResult != null) {
+                    return@withContext finalResult!!
+                }
+            }
+
+            if (finalResult != null) {
+                return@withContext finalResult!!
             }
 
             if (directFromUrl != null) {
@@ -346,9 +407,8 @@ object MapsParser {
 
             throw IllegalStateException("Could not extract latitude and longitude from the resolved Google Maps page.")
         } catch (e: Exception) {
-            if (directFromUrl != null) {
-                return@withContext directFromUrl
-            }
+            if (finalResult != null) return@withContext finalResult!!
+            if (directFromUrl != null) return@withContext directFromUrl
             throw e
         }
     }
