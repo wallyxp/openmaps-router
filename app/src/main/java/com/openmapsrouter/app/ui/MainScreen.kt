@@ -1,6 +1,16 @@
 package com.openmapsrouter.app.ui
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.openmapsrouter.app.utils.LocationHelper
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -62,13 +72,72 @@ fun MainScreen(
     onDeriveCoordinates: (String) -> Unit,
     onDeleteHistoryItem: (String) -> Unit,
     onClearAllHistory: () -> Unit,
-    onSelectHistoryItem: (HistoryItem) -> Unit
+    onSelectHistoryItem: (HistoryItem) -> Unit,
+    onGetCurrentLocation: (Double, Double) -> Unit
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     var showSettingsWindow by remember { mutableStateOf(false) }
     var showNotInstalledDialog by remember { mutableStateOf(false) }
     var showConfirmClearDialog by remember { mutableStateOf(false) }
+
+    val coroutineScope = rememberCoroutineScope()
+    var isLocating by remember { mutableStateOf(false) }
+
+    fun fetchLocation() {
+        if (!LocationHelper.isLocationEnabled(context)) {
+            Toast.makeText(context, "Please turn on Location / GPS in settings", Toast.LENGTH_SHORT).show()
+            try {
+                context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            } catch (_: Exception) {}
+            return
+        }
+
+        isLocating = true
+        coroutineScope.launch {
+            try {
+                val loc = LocationHelper.getCurrentLocation(context)
+                if (loc != null) {
+                    onGetCurrentLocation(loc.latitude, loc.longitude)
+                } else {
+                    Toast.makeText(context, "Could not acquire GPS location. Try again outdoors.", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message ?: "Failed to get location", Toast.LENGTH_SHORT).show()
+            } finally {
+                isLocating = false
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (fineGranted || coarseGranted) {
+            fetchLocation()
+        } else {
+            Toast.makeText(context, "Location permission is required to get current location", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun onGetCurrentLocationClicked() {
+        if (isLocating) return
+        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+        if (fine || coarse) {
+            fetchLocation()
+        } else {
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
 
     if (showSettingsWindow) {
         BackHandler {
@@ -82,22 +151,25 @@ fun MainScreen(
     } else {
         val scrollState = rememberScrollState()
 
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(DarkBackground)
         ) {
-            // Top Header with status bar padding
-            Header(
-                onOpenSettings = { showSettingsWindow = true }
-            )
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Top Header with status bar padding
+                Header(
+                    onOpenSettings = { showSettingsWindow = true }
+                )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(bottom = 32.dp)
-        ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                        .padding(bottom = 80.dp)
+                ) {
             // Clipboard detected banner
             if (clipboardUrl != null) {
                 ClipboardBanner(
@@ -192,6 +264,46 @@ fun MainScreen(
                     },
                     onDeleteItem = onDeleteHistoryItem,
                     onClearAll = { showConfirmClearDialog = true }
+                )
+            }
+        }
+    }
+
+        // Bottom-Right "Get Current Location" Button
+        Surface(
+            onClick = { onGetCurrentLocationClicked() },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
+                .padding(end = 16.dp, bottom = 16.dp),
+            shape = RoundedCornerShape(50),
+            color = PureWhite,
+            shadowElevation = 8.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isLocating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = PureBlack
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.MyLocation,
+                        contentDescription = "Current Location",
+                        tint = PureBlack,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Get Current Location",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PureBlack
                 )
             }
         }

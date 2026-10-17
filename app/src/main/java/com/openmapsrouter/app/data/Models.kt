@@ -5,7 +5,8 @@ enum class SourceMethod(val label: String) {
     CAMERA_VIEW("Camera Viewport (@lat,lon)"),
     QUERY_PARAM("Query Param (?q/ll)"),
     HTML_META("HTML StaticMap Meta"),
-    DIRECT_COORDS("Direct Coordinates")
+    DIRECT_COORDS("Direct Coordinates"),
+    CURRENT_LOCATION("Current Location")
 }
 
 data class CoordinateResult(

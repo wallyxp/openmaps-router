@@ -12,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import com.openmapsrouter.app.data.AppSettings
 import com.openmapsrouter.app.data.CoordinateResult
 import com.openmapsrouter.app.data.HistoryItem
+import com.openmapsrouter.app.data.SourceMethod
 import com.openmapsrouter.app.data.StorageManager
 import com.openmapsrouter.app.parser.MapsParser
 import com.openmapsrouter.app.search.PlaceSearchService
@@ -94,6 +95,9 @@ class MainActivity : ComponentActivity() {
                     onSelectHistoryItem = { item ->
                         currentResultState.value = item.toCoordinateResult()
                         inputUrlState.value = item.originalUrl
+                    },
+                    onGetCurrentLocation = { latitude, longitude ->
+                        onCurrentLocationFetched(latitude, longitude)
                     }
                 )
             }
@@ -256,6 +260,30 @@ class MainActivity : ComponentActivity() {
             } finally {
                 isLoadingState.value = false
             }
+        }
+    }
+
+    private fun onCurrentLocationFetched(latitude: Double, longitude: Double) {
+        val rawCoords = String.format(java.util.Locale.US, "%.6f, %.6f", latitude, longitude)
+        val result = CoordinateResult(
+            latitude = latitude,
+            longitude = longitude,
+            name = "Current Location",
+            sourceMethod = SourceMethod.CURRENT_LOCATION,
+            originalUrl = rawCoords
+        )
+        currentResultState.value = result
+
+        if (settingsState.value.keepHistory) {
+            historyState.value = storageManager.addHistoryItem(result)
+        }
+
+        if (settingsState.value.autoOpenOrganicMaps) {
+            OrganicMapsLauncher.launchOrganicMaps(
+                context = this@MainActivity,
+                result = result,
+                preferredScheme = settingsState.value.preferredScheme
+            )
         }
     }
 }
