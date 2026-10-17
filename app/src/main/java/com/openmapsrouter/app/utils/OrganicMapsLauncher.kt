@@ -95,7 +95,10 @@ object OrganicMapsLauncher {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(geoUri)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(intent)
+            val chooser = Intent.createChooser(intent, "Open in System Map").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
         } catch (e: Exception) {
             Toast.makeText(context, "No map application found.", Toast.LENGTH_SHORT).show()
         }

@@ -164,35 +164,67 @@ fun MainScreen(
                     onOpenSettings = { showSettingsWindow = true }
                 )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(bottom = 80.dp)
-                ) {
-            // Clipboard detected banner
-            if (clipboardUrl != null) {
-                ClipboardBanner(
-                    url = clipboardUrl,
-                    onConvert = {
-                        onTabChange(1)
-                        onInputUrlChange(clipboardUrl)
-                        onDismissClipboard()
-                        onDeriveCoordinates(clipboardUrl)
-                    },
-                    onDismiss = onDismissClipboard
+                // Mode Selector Segmented Tabs (Fixed at top)
+                ModeTabBar(
+                    activeTab = activeTab,
+                    onTabChange = onTabChange
                 )
-            }
 
-            // Mode Selector Segmented Tabs
-            ModeTabBar(
-                activeTab = activeTab,
-                onTabChange = onTabChange
-            )
+                if (activeTab == 2) {
+                    GmapWebView(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        onCoordinatesDerived = { result ->
+                            onSelectHistoryItem(
+                                HistoryItem(
+                                    id = java.util.UUID.randomUUID().toString(),
+                                    latitude = result.latitude,
+                                    longitude = result.longitude,
+                                    name = result.name,
+                                    sourceMethod = result.sourceMethod,
+                                    originalUrl = result.originalUrl,
+                                    timestamp = System.currentTimeMillis()
+                                )
+                            )
+                        },
+                        onOpenOrganicMaps = { result ->
+                            OrganicMapsLauncher.launchOrganicMaps(
+                                context = context,
+                                result = result,
+                                preferredScheme = settings.preferredScheme,
+                                onNotInstalled = { showNotInstalledDialog = true }
+                            )
+                        },
+                        onOpenSystemMap = { result ->
+                            OrganicMapsLauncher.openInSystemMap(context, result)
+                        }
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(scrollState)
+                            .padding(bottom = 80.dp)
+                    ) {
+                        // Clipboard detected banner
+                        if (clipboardUrl != null) {
+                            ClipboardBanner(
+                                url = clipboardUrl,
+                                onConvert = {
+                                    onTabChange(1)
+                                    onInputUrlChange(clipboardUrl)
+                                    onDismissClipboard()
+                                    onDeriveCoordinates(clipboardUrl)
+                                },
+                                onDismiss = onDismissClipboard
+                            )
+                        }
 
-            // Active Tab Content
-            if (activeTab == 0) {
-                SearchPlacesCard(
+                        // Active Tab Content
+                        if (activeTab == 0) {
+                            SearchPlacesCard(
                     searchQuery = searchQuery,
                     onSearchQueryChange = onSearchQueryChange,
                     suggestions = suggestions,
@@ -268,43 +300,46 @@ fun MainScreen(
             }
         }
     }
+}
 
-        // Bottom-Right "Get Current Location" Button
-        Surface(
-            onClick = { onGetCurrentLocationClicked() },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = 16.dp, bottom = 16.dp),
-            shape = RoundedCornerShape(50),
-            color = PureWhite,
-            shadowElevation = 8.dp
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
+        // Bottom-Right "Get Current Location" Button (visible only in Tabs 0 & 1)
+        if (activeTab != 2) {
+            Surface(
+                onClick = { onGetCurrentLocationClicked() },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 16.dp, bottom = 16.dp),
+                shape = RoundedCornerShape(50),
+                color = PureWhite,
+                shadowElevation = 8.dp
             ) {
-                if (isLocating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isLocating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = PureBlack
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.MyLocation,
+                            contentDescription = "Current Location",
+                            tint = PureBlack,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Get Current Location",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
                         color = PureBlack
                     )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.MyLocation,
-                        contentDescription = "Current Location",
-                        tint = PureBlack,
-                        modifier = Modifier.size(18.dp)
-                    )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Get Current Location",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PureBlack
-                )
             }
         }
     }
@@ -439,14 +474,15 @@ fun ModeTabBar(
                         imageVector = Icons.Filled.Search,
                         contentDescription = null,
                         tint = if (activeTab == 0) PureBlack else TextSecondaryDark,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Search Places",
-                        fontSize = 14.sp,
+                        fontSize = 12.5.sp,
                         fontWeight = if (activeTab == 0) FontWeight.Bold else FontWeight.Medium,
-                        color = if (activeTab == 0) PureBlack else TextSecondaryDark
+                        color = if (activeTab == 0) PureBlack else TextSecondaryDark,
+                        maxLines = 1
                     )
                 }
             }
@@ -469,14 +505,46 @@ fun ModeTabBar(
                         imageVector = Icons.Filled.Link,
                         contentDescription = null,
                         tint = if (activeTab == 1) PureBlack else TextSecondaryDark,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Convert Link",
-                        fontSize = 14.sp,
+                        fontSize = 12.5.sp,
                         fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Medium,
-                        color = if (activeTab == 1) PureBlack else TextSecondaryDark
+                        color = if (activeTab == 1) PureBlack else TextSecondaryDark,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            // Tab 2: Gmap WV
+            Surface(
+                color = if (activeTab == 2) PureWhite else Color.Transparent,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(50))
+                    .clickable { onTabChange(2) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Language,
+                        contentDescription = null,
+                        tint = if (activeTab == 2) PureBlack else TextSecondaryDark,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Gmap WV",
+                        fontSize = 12.5.sp,
+                        fontWeight = if (activeTab == 2) FontWeight.Bold else FontWeight.Medium,
+                        color = if (activeTab == 2) PureBlack else TextSecondaryDark,
+                        maxLines = 1
                     )
                 }
             }

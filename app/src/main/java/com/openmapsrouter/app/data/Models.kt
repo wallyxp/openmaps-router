@@ -6,7 +6,8 @@ enum class SourceMethod(val label: String) {
     QUERY_PARAM("Query Param (?q/ll)"),
     HTML_META("HTML StaticMap Meta"),
     DIRECT_COORDS("Direct Coordinates"),
-    CURRENT_LOCATION("Current Location")
+    CURRENT_LOCATION("Current Location"),
+    WEBVIEW_INTERCEPT("Google Maps WebView")
 }
 
 data class CoordinateResult(
