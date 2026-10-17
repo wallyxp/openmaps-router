@@ -62,6 +62,7 @@ import java.util.Locale
 @Composable
 fun GmapWebView(
     modifier: Modifier = Modifier,
+    isActive: Boolean = true,
     onCoordinatesDerived: (CoordinateResult) -> Unit,
     onOpenOrganicMaps: (CoordinateResult) -> Unit,
     onOpenSystemMap: (CoordinateResult) -> Unit
@@ -129,7 +130,7 @@ fun GmapWebView(
     }
 
     // Intercept hardware / system back navigation
-    BackHandler(enabled = derivedResult != null || canGoBack) {
+    BackHandler(enabled = isActive && (derivedResult != null || canGoBack)) {
         if (derivedResult != null) {
             derivedResult = null
         } else if (canGoBack) {
@@ -407,6 +408,11 @@ fun GmapWebView(
             },
             update = { wv ->
                 canGoBack = wv.canGoBack()
+                if (isActive) {
+                    wv.onResume()
+                } else {
+                    wv.onPause()
+                }
             }
         )
 

@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -151,26 +152,32 @@ fun MainScreen(
     } else {
         val scrollState = rememberScrollState()
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(DarkBackground)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // Fixed Top Bar with Segmented Tabs and Settings Button
+        Scaffold(
+            topBar = {
                 TopBar(
                     activeTab = activeTab,
                     onTabChange = onTabChange,
                     onOpenSettings = { showSettingsWindow = true }
                 )
-
-                if (activeTab == 2) {
+            },
+            containerColor = DarkBackground,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(DarkBackground)
+            ) {
+                // Tab 1: Gmap WV (kept permanently in composition so top bar never blinks and webview never reloads)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(if (activeTab == 1) 2f else 0f)
+                ) {
                     GmapWebView(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
+                        modifier = Modifier.fillMaxSize(),
+                        isActive = (activeTab == 1),
                         onCoordinatesDerived = { result ->
                             onSelectHistoryItem(
                                 HistoryItem(
@@ -196,11 +203,15 @@ fun MainScreen(
                             OrganicMapsLauncher.openInSystemMap(context, result)
                         }
                     )
-                } else {
+                }
+
+                // Tab 0: Search Places
+                if (activeTab == 0) {
                     Column(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
+                            .fillMaxSize()
+                            .zIndex(3f)
+                            .background(DarkBackground)
                             .verticalScroll(scrollState)
                             .padding(bottom = 80.dp)
                     ) {
@@ -209,8 +220,6 @@ fun MainScreen(
                             ClipboardBanner(
                                 url = clipboardUrl,
                                 onConvert = {
-                                    onTabChange(1)
-                                    onInputUrlChange(clipboardUrl)
                                     onDismissClipboard()
                                     onDeriveCoordinates(clipboardUrl)
                                 },
@@ -218,123 +227,107 @@ fun MainScreen(
                             )
                         }
 
-                        // Active Tab Content
-                        if (activeTab == 0) {
-                            SearchPlacesCard(
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = onSearchQueryChange,
-                    suggestions = suggestions,
-                    isSearching = isSearching,
-                    isLoading = isLoading,
-                    onSelectSuggestion = onSelectSuggestion,
-                    onPerformSearch = onPerformSearch
-                )
-            } else {
-                InputCard(
-                    inputUrl = inputUrl,
-                    onInputUrlChange = onInputUrlChange,
-                    isLoading = isLoading,
-                    onSubmit = { onDeriveCoordinates(inputUrl) },
-                    onPaste = {
-                        val clip = clipboardManager.getText()?.text
-                        if (!clip.isNullOrBlank()) {
-                            onInputUrlChange(clip.trim())
+                        // Search Places Card
+                        SearchPlacesCard(
+                            searchQuery = searchQuery,
+                            onSearchQueryChange = onSearchQueryChange,
+                            suggestions = suggestions,
+                            isSearching = isSearching,
+                            isLoading = isLoading,
+                            onSelectSuggestion = onSelectSuggestion,
+                            onPerformSearch = onPerformSearch
+                        )
+
+                        // Error banner
+                        if (errorMessage != null) {
+                            ErrorCard(message = errorMessage)
                         }
-                    },
-                    onClear = {
-                        onInputUrlChange("")
+
+                        // Result Card
+                        if (currentResult != null) {
+                            ResultCard(
+                                result = currentResult,
+                                preferredScheme = settings.preferredScheme,
+                                onOpenOrganicMaps = {
+                                    OrganicMapsLauncher.launchOrganicMaps(
+                                        context = context,
+                                        result = currentResult,
+                                        preferredScheme = settings.preferredScheme,
+                                        onNotInstalled = { showNotInstalledDialog = true }
+                                    )
+                                },
+                                onCopyCoords = { OrganicMapsLauncher.copyCoordinatesToClipboard(context, currentResult) },
+                                onCopyOmLink = { OrganicMapsLauncher.copyOmLinkToClipboard(context, currentResult) },
+                                onOpenSystem = { OrganicMapsLauncher.openInSystemMap(context, currentResult) },
+                                onOpenOsm = { OrganicMapsLauncher.openInOsmWeb(context, currentResult) },
+                                onShare = { OrganicMapsLauncher.shareCoordinates(context, currentResult) }
+                            )
+                        }
+
+                        // History Section
+                        if (history.isNotEmpty()) {
+                            HistorySection(
+                                items = history,
+                                preferredScheme = settings.preferredScheme,
+                                onSelectItem = onSelectHistoryItem,
+                                onOpenItem = { item ->
+                                    OrganicMapsLauncher.launchOrganicMaps(
+                                        context = context,
+                                        result = item.toCoordinateResult(),
+                                        preferredScheme = settings.preferredScheme,
+                                        onNotInstalled = { showNotInstalledDialog = true }
+                                    )
+                                },
+                                onCopyItem = { item ->
+                                    OrganicMapsLauncher.copyCoordinatesToClipboard(context, item.toCoordinateResult())
+                                },
+                                onDeleteItem = onDeleteHistoryItem,
+                                onClearAll = { showConfirmClearDialog = true }
+                            )
+                        }
                     }
-                )
-            }
+                }
 
-            // Error banner
-            if (errorMessage != null) {
-                ErrorCard(message = errorMessage)
-            }
-
-            // Result Card
-            if (currentResult != null) {
-                ResultCard(
-                    result = currentResult,
-                    preferredScheme = settings.preferredScheme,
-                    onOpenOrganicMaps = {
-                        OrganicMapsLauncher.launchOrganicMaps(
-                            context = context,
-                            result = currentResult,
-                            preferredScheme = settings.preferredScheme,
-                            onNotInstalled = { showNotInstalledDialog = true }
-                        )
-                    },
-                    onCopyCoords = { OrganicMapsLauncher.copyCoordinatesToClipboard(context, currentResult) },
-                    onCopyOmLink = { OrganicMapsLauncher.copyOmLinkToClipboard(context, currentResult) },
-                    onOpenSystem = { OrganicMapsLauncher.openInSystemMap(context, currentResult) },
-                    onOpenOsm = { OrganicMapsLauncher.openInOsmWeb(context, currentResult) },
-                    onShare = { OrganicMapsLauncher.shareCoordinates(context, currentResult) }
-                )
-            }
-
-            // History Section
-            if (history.isNotEmpty()) {
-                HistorySection(
-                    items = history,
-                    preferredScheme = settings.preferredScheme,
-                    onSelectItem = onSelectHistoryItem,
-                    onOpenItem = { item ->
-                        OrganicMapsLauncher.launchOrganicMaps(
-                            context = context,
-                            result = item.toCoordinateResult(),
-                            preferredScheme = settings.preferredScheme,
-                            onNotInstalled = { showNotInstalledDialog = true }
-                        )
-                    },
-                    onCopyItem = { item ->
-                        OrganicMapsLauncher.copyCoordinatesToClipboard(context, item.toCoordinateResult())
-                    },
-                    onDeleteItem = onDeleteHistoryItem,
-                    onClearAll = { showConfirmClearDialog = true }
-                )
-            }
-        }
-    }
-}
-
-        // Bottom-Right "Get Current Location" Button (visible only in Tabs 0 & 1)
-        if (activeTab != 2) {
-            Surface(
-                onClick = { onGetCurrentLocationClicked() },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(end = 16.dp, bottom = 16.dp),
-                shape = RoundedCornerShape(50),
-                color = PureWhite,
-                shadowElevation = 8.dp
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (isLocating) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = PureBlack
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Filled.MyLocation,
-                            contentDescription = "Current Location",
-                            tint = PureBlack,
-                            modifier = Modifier.size(18.dp)
-                        )
+                // Bottom-Right "Get Current Location" Button (visible on Tab 0)
+                if (activeTab == 0) {
+                    Surface(
+                        onClick = { onGetCurrentLocationClicked() },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .navigationBarsPadding()
+                            .padding(end = 16.dp, bottom = 16.dp)
+                            .zIndex(4f),
+                        shape = RoundedCornerShape(50),
+                        color = PureWhite,
+                        shadowElevation = 8.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isLocating) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = PureBlack
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Filled.MyLocation,
+                                    contentDescription = "Current Location",
+                                    tint = PureBlack,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Get Current Location",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PureBlack
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Get Current Location",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PureBlack
-                    )
                 }
             }
         }
@@ -431,7 +424,6 @@ fun MainScreen(
             }
         )
     }
-    }
 }
 
 @Composable
@@ -482,12 +474,12 @@ fun TopBar(
                                 imageVector = Icons.Filled.Search,
                                 contentDescription = null,
                                 tint = if (activeTab == 0) PureBlack else TextSecondaryDark,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Search Places",
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 fontWeight = if (activeTab == 0) FontWeight.Bold else FontWeight.Medium,
                                 color = if (activeTab == 0) PureBlack else TextSecondaryDark,
                                 maxLines = 1
@@ -495,7 +487,7 @@ fun TopBar(
                         }
                     }
 
-                    // Tab 1: Convert Link
+                    // Tab 1: Gmap WV
                     Surface(
                         color = if (activeTab == 1) PureWhite else Color.Transparent,
                         shape = RoundedCornerShape(50),
@@ -510,48 +502,17 @@ fun TopBar(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Link,
-                                contentDescription = null,
-                                tint = if (activeTab == 1) PureBlack else TextSecondaryDark,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Convert Link",
-                                fontSize = 12.sp,
-                                fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Medium,
-                                color = if (activeTab == 1) PureBlack else TextSecondaryDark,
-                                maxLines = 1
-                            )
-                        }
-                    }
-
-                    // Tab 2: Gmap WV
-                    Surface(
-                        color = if (activeTab == 2) PureWhite else Color.Transparent,
-                        shape = RoundedCornerShape(50),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(50))
-                            .clickable { onTabChange(2) }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(vertical = 10.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
                                 imageVector = Icons.Filled.Language,
                                 contentDescription = null,
-                                tint = if (activeTab == 2) PureBlack else TextSecondaryDark,
-                                modifier = Modifier.size(15.dp)
+                                tint = if (activeTab == 1) PureBlack else TextSecondaryDark,
+                                modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Gmap WV",
-                                fontSize = 12.sp,
-                                fontWeight = if (activeTab == 2) FontWeight.Bold else FontWeight.Medium,
-                                color = if (activeTab == 2) PureBlack else TextSecondaryDark,
+                                fontSize = 13.sp,
+                                fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Medium,
+                                color = if (activeTab == 1) PureBlack else TextSecondaryDark,
                                 maxLines = 1
                             )
                         }

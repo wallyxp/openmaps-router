@@ -122,7 +122,7 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_VIEW -> {
                 val data = intent.dataString
                 if (!data.isNullOrBlank()) {
-                    activeTabState.value = 1
+                    activeTabState.value = 0
                     inputUrlState.value = data
                     processCoordinates(data)
                 }
@@ -131,7 +131,7 @@ class MainActivity : ComponentActivity() {
                 if (intent.type == "text/plain") {
                     val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
                     if (!sharedText.isNullOrBlank()) {
-                        activeTabState.value = 1
+                        activeTabState.value = 0
                         inputUrlState.value = sharedText
                         processCoordinates(sharedText)
                     }
