@@ -163,10 +163,23 @@ fun GmapWebView(
                         builtInZoomControls = true
                         displayZoomControls = false
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+
+                        // Emulate regular Chrome mobile by stripping '; wv' and 'Version/4.0'
+                        // This prevents Google Maps from detecting WebView and prompting "Stay on web" / "Open app"
+                        val defaultUa = userAgentString ?: ""
+                        userAgentString = defaultUa
+                            .replace("; wv", "")
+                            .replace(Regex("""Version/\d+\.\d+\s*"""), "")
                     }
 
-                    android.webkit.CookieManager.getInstance().setAcceptCookie(true)
-                    android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                    val cookieManager = android.webkit.CookieManager.getInstance()
+                    cookieManager.setAcceptCookie(true)
+                    cookieManager.setAcceptThirdPartyCookies(this, true)
+                    cookieManager.setCookie("https://www.google.com", "CONSENT=YES+; path=/; domain=.google.com")
+                    cookieManager.setCookie("https://www.google.com", "SOCS=CAISHAgBEhJnd3NfMjAyMzA4MTAtMF9SQzIaAmVuIAEaBgiAo_CmBg; path=/; domain=.google.com")
+                    cookieManager.setCookie("https://www.google.com", "maps_open_app_promo=dismiss; path=/; domain=.google.com")
+                    cookieManager.setCookie("https://maps.google.com", "maps_open_app_promo=dismiss; path=/; domain=.google.com")
+                    cookieManager.flush()
 
                     // JavaScript Bridge to intercept Share API and map clicks
                     addJavascriptInterface(
@@ -224,9 +237,75 @@ fun GmapWebView(
                         private fun injectHelperJs(view: WebView) {
                             val js = """
                                 (function() {
+                                    // 1. Hide "Open app" and "Stay on web" promotion modals via CSS
+                                    try {
+                                        if (!document.getElementById('__omr_suppress_style')) {
+                                            const style = document.createElement('style');
+                                            style.id = '__omr_suppress_style';
+                                            style.textContent = `
+                                                .app-promo-container,
+                                                #app-promo,
+                                                .waterfall-app-promo,
+                                                .ml-promotion-action-sheet,
+                                                .app-banner,
+                                                [aria-label*="Open in app"],
+                                                [aria-label*="Open app"],
+                                                [aria-label*="Use app"],
+                                                .open-in-app-banner,
+                                                .app-bar,
+                                                .ml-app-promo,
+                                                .mobile-app-banner,
+                                                .drawer-open-in-app,
+                                                div[role="dialog"][aria-label*="app"],
+                                                div[data-promo-id] {
+                                                    display: none !important;
+                                                    visibility: hidden !important;
+                                                    height: 0 !important;
+                                                    max-height: 0 !important;
+                                                    opacity: 0 !important;
+                                                    overflow: hidden !important;
+                                                    pointer-events: none !important;
+                                                }
+                                            `;
+                                            (document.head || document.documentElement).appendChild(style);
+                                        }
+                                    } catch(e) {}
+
+                                    // 2. Auto-click "Stay on web" or "Use web" if prompt appears
+                                    function dismissStayOnWeb() {
+                                        try {
+                                            const candidates = document.querySelectorAll('button, a, span, div[role="button"], p');
+                                            for (let i = 0; i < candidates.length; i++) {
+                                                const el = candidates[i];
+                                                const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+                                                if (txt === 'stay on web' || txt === 'use the web' || txt === 'use web' || txt === 'continue on web' || txt === 'stay on the web' || txt.includes('stay on web') || txt.includes('use the web')) {
+                                                    const btn = el.closest('button, [role="button"], a') || el;
+                                                    btn.click();
+                                                    break;
+                                                }
+                                            }
+                                        } catch(e) {}
+                                    }
+                                    dismissStayOnWeb();
+                                    const promoInterval = setInterval(dismissStayOnWeb, 150);
+                                    setTimeout(function() { clearInterval(promoInterval); }, 8000);
+
+                                    try {
+                                        const observer = new MutationObserver(function() {
+                                            dismissStayOnWeb();
+                                        });
+                                        if (document.body) {
+                                            observer.observe(document.body, { childList: true, subtree: true });
+                                        } else {
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                if (document.body) observer.observe(document.body, { childList: true, subtree: true });
+                                            });
+                                        }
+                                    } catch(e) {}
+
+                                    // 3. Intercept Web Share API & click listeners
                                     if (!window.__omr_installed) {
                                         window.__omr_installed = true;
-                                        // Intercept Web Share API
                                         const _origShare = navigator.share;
                                         navigator.share = function(data) {
                                             try {
@@ -243,7 +322,6 @@ fun GmapWebView(
                                             return Promise.resolve();
                                         };
 
-                                        // Listen to user map clicks
                                         function notifyUrl() {
                                             try {
                                                 if (window.AndroidBridge && window.location.href) {
@@ -303,11 +381,28 @@ fun GmapWebView(
                                 return true
                             }
 
+                            val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: ""
+                            val host = uri.host?.lowercase(Locale.ROOT) ?: ""
+
+                            // Keep Google Maps and Google internal navigation strictly within the WebView
+                            if (scheme == "http" || scheme == "https") {
+                                if (host.contains("google.") || host.contains("gstatic.com") || host.contains("googleusercontent.com")) {
+                                    view?.loadUrl(urlStr)
+                                    return true
+                                }
+                                // External URLs: open in external browser
+                                try {
+                                    val browserIntent = Intent(Intent.ACTION_VIEW, uri)
+                                    context.startActivity(browserIntent)
+                                } catch (_: Exception) {}
+                                return true
+                            }
+
                             return false
                         }
                     }
 
-                    loadUrl("https://www.google.com/maps")
+                    loadUrl("https://www.google.com/maps?force=qpm&entry=ttu")
                 }
             },
             update = { wv ->

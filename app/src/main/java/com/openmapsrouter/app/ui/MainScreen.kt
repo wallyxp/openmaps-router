@@ -159,15 +159,11 @@ fun MainScreen(
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // Top Header with status bar padding
-                Header(
-                    onOpenSettings = { showSettingsWindow = true }
-                )
-
-                // Mode Selector Segmented Tabs (Fixed at top)
-                ModeTabBar(
+                // Fixed Top Bar with Segmented Tabs and Settings Button
+                TopBar(
                     activeTab = activeTab,
-                    onTabChange = onTabChange
+                    onTabChange = onTabChange,
+                    onOpenSettings = { showSettingsWindow = true }
                 )
 
                 if (activeTab == 2) {
@@ -439,114 +435,147 @@ fun MainScreen(
 }
 
 @Composable
-fun ModeTabBar(
+fun TopBar(
     activeTab: Int,
-    onTabChange: (Int) -> Unit
+    onTabChange: (Int) -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     Surface(
-        color = DarkSurface,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(50),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
+        color = DarkBackground,
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(4.dp)
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Tab 0: Search Places
+            // Mode Selector Segmented Tabs
             Surface(
-                color = if (activeTab == 0) PureWhite else Color.Transparent,
+                color = DarkSurface,
+                modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(50),
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(50))
-                    .clickable { onTabChange(0) }
+                border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
             ) {
                 Row(
-                    modifier = Modifier.padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = null,
-                        tint = if (activeTab == 0) PureBlack else TextSecondaryDark,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Search Places",
-                        fontSize = 12.5.sp,
-                        fontWeight = if (activeTab == 0) FontWeight.Bold else FontWeight.Medium,
-                        color = if (activeTab == 0) PureBlack else TextSecondaryDark,
-                        maxLines = 1
-                    )
+                    // Tab 0: Search Places
+                    Surface(
+                        color = if (activeTab == 0) PureWhite else Color.Transparent,
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onTabChange(0) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = null,
+                                tint = if (activeTab == 0) PureBlack else TextSecondaryDark,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Search Places",
+                                fontSize = 12.sp,
+                                fontWeight = if (activeTab == 0) FontWeight.Bold else FontWeight.Medium,
+                                color = if (activeTab == 0) PureBlack else TextSecondaryDark,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    // Tab 1: Convert Link
+                    Surface(
+                        color = if (activeTab == 1) PureWhite else Color.Transparent,
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onTabChange(1) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Link,
+                                contentDescription = null,
+                                tint = if (activeTab == 1) PureBlack else TextSecondaryDark,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Convert Link",
+                                fontSize = 12.sp,
+                                fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Medium,
+                                color = if (activeTab == 1) PureBlack else TextSecondaryDark,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    // Tab 2: Gmap WV
+                    Surface(
+                        color = if (activeTab == 2) PureWhite else Color.Transparent,
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onTabChange(2) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Language,
+                                contentDescription = null,
+                                tint = if (activeTab == 2) PureBlack else TextSecondaryDark,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Gmap WV",
+                                fontSize = 12.sp,
+                                fontWeight = if (activeTab == 2) FontWeight.Bold else FontWeight.Medium,
+                                color = if (activeTab == 2) PureBlack else TextSecondaryDark,
+                                maxLines = 1
+                            )
+                        }
+                    }
                 }
             }
 
-            // Tab 1: Convert Link
-            Surface(
-                color = if (activeTab == 1) PureWhite else Color.Transparent,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(50))
-                    .clickable { onTabChange(1) }
-            ) {
-                Row(
-                    modifier = Modifier.padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Link,
-                        contentDescription = null,
-                        tint = if (activeTab == 1) PureBlack else TextSecondaryDark,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Convert Link",
-                        fontSize = 12.5.sp,
-                        fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Medium,
-                        color = if (activeTab == 1) PureBlack else TextSecondaryDark,
-                        maxLines = 1
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.width(10.dp))
 
-            // Tab 2: Gmap WV
-            Surface(
-                color = if (activeTab == 2) PureWhite else Color.Transparent,
-                shape = RoundedCornerShape(50),
+            // Standalone circular Settings button beside Gmap WV
+            IconButton(
+                onClick = onOpenSettings,
                 modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(50))
-                    .clickable { onTabChange(2) }
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(DarkSurfaceElevated)
+                    .border(1.dp, DarkBorder, CircleShape)
             ) {
-                Row(
-                    modifier = Modifier.padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Language,
-                        contentDescription = null,
-                        tint = if (activeTab == 2) PureBlack else TextSecondaryDark,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Gmap WV",
-                        fontSize = 12.5.sp,
-                        fontWeight = if (activeTab == 2) FontWeight.Bold else FontWeight.Medium,
-                        color = if (activeTab == 2) PureBlack else TextSecondaryDark,
-                        maxLines = 1
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Filled.Settings,
+                    contentDescription = "Settings",
+                    tint = PureWhite,
+                    modifier = Modifier.size(19.dp)
+                )
             }
         }
     }
@@ -708,45 +737,6 @@ fun SearchPlacesCard(
     }
 }
 
-@Composable
-fun Header(onOpenSettings: () -> Unit) {
-    Surface(
-        color = DarkBackground,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "OpenMapsRouter",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimaryDark
-            )
-
-            IconButton(
-                onClick = onOpenSettings,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(DarkSurfaceElevated)
-                    .border(1.dp, DarkBorder, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Settings,
-                    contentDescription = "Settings",
-                    tint = PureWhite,
-                    modifier = Modifier.size(19.dp)
-                )
-            }
-        }
-    }
-}
 
 @Composable
 fun ClipboardBanner(
@@ -1017,20 +1007,6 @@ fun ResultCard(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = TextPrimaryDark
-                    )
-                }
-
-                Surface(
-                    color = EmeraldGreenContainer,
-                    shape = RoundedCornerShape(50),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreenBorder)
-                ) {
-                    Text(
-                        text = result.sourceMethod.label,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = EmeraldGreen,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
             }
