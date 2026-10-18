@@ -264,7 +264,18 @@ fun GmapWebView(
                                                 .app-bar,
                                                 .ml-app-promo,
                                                 .mobile-app-banner,
-                                                .drawer-open-in-app,
+                                                .ml-street-view-fab,
+                                                [class*="street-view"],
+                                                [class*="streetview"],
+                                                [aria-label*="Street View" i],
+                                                [aria-label*="Street view" i],
+                                                [aria-label*="street view" i],
+                                                [data-action*="streetview" i],
+                                                [jsaction*="streetview" i],
+                                                [jsaction*="streetView" i],
+                                                button[data-tooltip*="Street View" i],
+                                                a[href*="cbll="],
+                                                a[href*="panoid="],
                                                 div[role="dialog"][aria-label*="app"],
                                                 div[data-promo-id] {
                                                     display: none !important;
@@ -303,6 +314,15 @@ fun GmapWebView(
                                                 if (shifted[i].style.top === '45px') {
                                                     shifted[i].style.setProperty('top', '0px', 'important');
                                                 }
+                                            }
+
+                                            // Hide street view option / button / FAB if present
+                                            const svElements = document.querySelectorAll('.ml-street-view-fab, [class*="street-view"], [class*="streetview"], [aria-label*="Street View" i], [aria-label*="Street view" i], [aria-label*="street view" i], [data-action*="streetview" i], [jsaction*="streetview" i], button[data-tooltip*="Street View" i]');
+                                            for (let i = 0; i < svElements.length; i++) {
+                                                const el = svElements[i];
+                                                el.style.setProperty('display', 'none', 'important');
+                                                el.style.setProperty('visibility', 'hidden', 'important');
+                                                el.style.setProperty('height', '0px', 'important');
                                             }
 
                                             // Auto-click "Stay on web" or "Use web" if prompt appears
