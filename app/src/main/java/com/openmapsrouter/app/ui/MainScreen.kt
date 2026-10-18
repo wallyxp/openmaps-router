@@ -495,7 +495,6 @@ fun TopBar(
     onOpenSettings: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
     Surface(
         color = DarkBackground,
@@ -513,23 +512,7 @@ fun TopBar(
                 color = DarkSurface,
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp)
-                    .draggable(
-                        state = rememberDraggableState { delta ->
-                            dragAccumulator += delta
-                        },
-                        orientation = Orientation.Horizontal,
-                        onDragStopped = { velocity ->
-                            coroutineScope.launch {
-                                if (velocity < -250f || dragAccumulator < -30f) {
-                                    pagerState.animateScrollToPage(1)
-                                } else if (velocity > 250f || dragAccumulator > 30f) {
-                                    pagerState.animateScrollToPage(0)
-                                }
-                                dragAccumulator = 0f
-                            }
-                        }
-                    ),
+                    .height(44.dp),
                 shape = RoundedCornerShape(50),
                 border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
             ) {

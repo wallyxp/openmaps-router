@@ -183,6 +183,7 @@ fun GmapWebView(
             factory = { ctx ->
                 WebView(ctx).apply {
                     webViewInstance = this
+                    WebView.setWebContentsDebuggingEnabled(true)
                     layoutParams = android.view.ViewGroup.LayoutParams(
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -332,22 +333,10 @@ fun GmapWebView(
                                                 [jsaction*="start.transit"],
                                                 [jsaction*="start.toggle"],
                                                 [jsaction*="start.togglefullpane"],
-                                                .ml-bottom-sheet,
                                                 [class*="quick-actions"],
                                                 [aria-label*="quick actions" i],
                                                 [aria-label*="Quick actions" i],
                                                 [aria-label*="Tap to see quick actions" i],
-                                                .ml-place-card,
-                                                [class*="ml-place-card"],
-                                                [class*="place-card"],
-                                                [class*="place-sheet"],
-                                                [class*="ml-place-details"],
-                                                [class*="place-details"],
-                                                [class*="place-info"],
-                                                [jsaction*="placeCard"],
-                                                [aria-label*="Place details" i],
-                                                [aria-label*="Information about" i],
-                                                div[data-place-id],
                                                 div[data-promo-id],
                                                 div[role="dialog"][aria-label*="app" i] {
                                                     display: none !important;
@@ -357,6 +346,34 @@ fun GmapWebView(
                                                     opacity: 0 !important;
                                                     overflow: hidden !important;
                                                     pointer-events: none !important;
+                                                }
+
+                                                /* Hide place card / details sheet when a place is selected, but NEVER hide search suggestions */
+                                                .ml-place-card:not([role="listbox"]):not([role="option"]):not([data-suggestion-index]):not([class*="suggest"]):not([class*="search"]),
+                                                [class*="ml-place-card"]:not([role="listbox"]):not([role="option"]):not([data-suggestion-index]):not([class*="suggest"]):not([class*="search"]),
+                                                div[class*="section-hero-header"] {
+                                                    display: none !important;
+                                                    visibility: hidden !important;
+                                                    height: 0 !important;
+                                                    max-height: 0 !important;
+                                                    opacity: 0 !important;
+                                                    overflow: hidden !important;
+                                                    pointer-events: none !important;
+                                                }
+
+                                                /* ALWAYS ensure search suggestions, autocomplete lists, and listboxes are fully visible */
+                                                [role="listbox"],
+                                                [role="option"],
+                                                [data-suggestion-index],
+                                                [class*="suggestion"],
+                                                [class*="suggest"],
+                                                .ml-searchbox-suggestions,
+                                                .sbsb_a,
+                                                .sbqs_c {
+                                                    visibility: visible !important;
+                                                    opacity: 1 !important;
+                                                    max-height: none !important;
+                                                    pointer-events: auto !important;
                                                 }
                                                 [style*="top: 45px"],
                                                 [style*="top:45px"] {
@@ -397,21 +414,23 @@ fun GmapWebView(
                                                 el.style.setProperty('height', '0px', 'important');
                                             }
 
-                                            // Hide "Your location" button, directions FAB, quick actions panel, Directions sheet, and location details popup
+                                            // Hide "Your location" button, directions FAB, quick actions panel, Directions sheet, and place card
                                             const extraElements = document.querySelectorAll(
                                                 '.P8NcLd, [class*="P8NcLd"], .Gv0Cj, [class*="Gv0Cj"], [jsaction*="start.drag"], [jsaction*="start.drive"], [jsaction*="start.two-wheeler"], [jsaction*="start.walk"], [jsaction*="start.transit"], [jsaction*="start.toggle"], ' +
                                                 '.ml-my-location-fab, [class*="my-location"], [jsaction*="myLocation"], [jsaction*="my_location"], [jsaction*="mylocation"], [aria-label*="Your location" i], ' +
                                                 '.ml-directions-fab, [class*="directions-fab"], [jsaction*="directions"], [aria-label*="Directions" i], ' +
-                                                '.ml-pane-container, .ml-bottom-sheet, [class*="quick-actions"], [aria-label*="quick actions" i], [aria-label*="Tap to see quick actions" i], ' +
-                                                '.ml-place-card, .widget-pane, div[role="dialog"]'
+                                                '.ml-place-card, [class*="ml-place-card"], div[class*="section-hero-header"]'
                                             );
                                             for (let i = 0; i < extraElements.length; i++) {
                                                 const el = extraElements[i];
-                                                if (!el.querySelector('input, #searchbox')) {
-                                                    el.style.setProperty('display', 'none', 'important');
-                                                    el.style.setProperty('visibility', 'hidden', 'important');
-                                                    el.style.setProperty('height', '0px', 'important');
+                                                // CRITICAL: NEVER hide search input or suggestions dropdown!
+                                                if (el.closest('[role="listbox"], [role="search"], form, [class*="suggest"], [class*="searchbox"]') ||
+                                                    el.querySelector('input, #searchbox, [role="listbox"], [data-suggestion-index], [class*="suggest"]')) {
+                                                    continue;
                                                 }
+                                                el.style.setProperty('display', 'none', 'important');
+                                                el.style.setProperty('visibility', 'hidden', 'important');
+                                                el.style.setProperty('height', '0px', 'important');
                                             }
 
                                             // Auto-click "Stay on web" or "Use web" if prompt appears
