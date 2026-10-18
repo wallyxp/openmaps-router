@@ -14,8 +14,15 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
@@ -151,180 +160,219 @@ fun MainScreen(
         )
     } else {
         val scrollState = rememberScrollState()
+        val pagerState = rememberPagerState(initialPage = activeTab) { 2 }
+
+        // Keep pagerState and activeTab in sync
+        LaunchedEffect(activeTab) {
+            if (pagerState.currentPage != activeTab) {
+                pagerState.animateScrollToPage(activeTab)
+            }
+        }
+
+        LaunchedEffect(pagerState.settledPage) {
+            if (activeTab != pagerState.settledPage) {
+                onTabChange(pagerState.settledPage)
+            }
+        }
 
         Scaffold(
             topBar = {
                 TopBar(
-                    activeTab = activeTab,
-                    onTabChange = onTabChange,
+                    pagerState = pagerState,
                     onOpenSettings = { showSettingsWindow = true }
                 )
             },
             containerColor = DarkBackground,
             contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { innerPadding ->
-            Box(
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .background(DarkBackground)
-            ) {
-                // Tab 1: Gmap WV (kept permanently in composition so top bar never blinks and webview never reloads)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(if (activeTab == 1) 2f else 0f)
-                ) {
-                    GmapWebView(
-                        modifier = Modifier.fillMaxSize(),
-                        isActive = (activeTab == 1),
-                        onCoordinatesDerived = { result ->
-                            onSelectHistoryItem(
-                                HistoryItem(
-                                    id = java.util.UUID.randomUUID().toString(),
-                                    latitude = result.latitude,
-                                    longitude = result.longitude,
-                                    name = result.name,
-                                    sourceMethod = result.sourceMethod,
-                                    originalUrl = result.originalUrl,
-                                    timestamp = System.currentTimeMillis()
+                    .background(DarkBackground),
+                beyondViewportPageCount = 1,
+                userScrollEnabled = (pagerState.settledPage == 0)
+            ) { page ->
+                when (page) {
+                    0 -> {
+                        // Tab 0: Search Places
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(DarkBackground)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(scrollState)
+                                    .padding(bottom = 80.dp)
+                            ) {
+                                // Clipboard detected banner
+                                if (clipboardUrl != null) {
+                                    ClipboardBanner(
+                                        url = clipboardUrl,
+                                        onConvert = {
+                                            onDismissClipboard()
+                                            onDeriveCoordinates(clipboardUrl)
+                                        },
+                                        onDismiss = onDismissClipboard
+                                    )
+                                }
+
+                                // Search Places Card
+                                SearchPlacesCard(
+                                    searchQuery = searchQuery,
+                                    onSearchQueryChange = onSearchQueryChange,
+                                    suggestions = suggestions,
+                                    isSearching = isSearching,
+                                    isLoading = isLoading,
+                                    onSelectSuggestion = onSelectSuggestion,
+                                    onPerformSearch = onPerformSearch
                                 )
-                            )
-                        },
-                        onOpenOrganicMaps = { result ->
-                            OrganicMapsLauncher.launchOrganicMaps(
-                                context = context,
-                                result = result,
-                                preferredScheme = settings.preferredScheme,
-                                onNotInstalled = { showNotInstalledDialog = true }
-                            )
-                        },
-                        onOpenSystemMap = { result ->
-                            OrganicMapsLauncher.openInSystemMap(context, result)
-                        }
-                    )
-                }
 
-                // Tab 0: Search Places
-                if (activeTab == 0) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zIndex(3f)
-                            .background(DarkBackground)
-                            .verticalScroll(scrollState)
-                            .padding(bottom = 80.dp)
-                    ) {
-                        // Clipboard detected banner
-                        if (clipboardUrl != null) {
-                            ClipboardBanner(
-                                url = clipboardUrl,
-                                onConvert = {
-                                    onDismissClipboard()
-                                    onDeriveCoordinates(clipboardUrl)
-                                },
-                                onDismiss = onDismissClipboard
-                            )
-                        }
+                                // Error banner
+                                if (errorMessage != null) {
+                                    ErrorCard(message = errorMessage)
+                                }
 
-                        // Search Places Card
-                        SearchPlacesCard(
-                            searchQuery = searchQuery,
-                            onSearchQueryChange = onSearchQueryChange,
-                            suggestions = suggestions,
-                            isSearching = isSearching,
-                            isLoading = isLoading,
-                            onSelectSuggestion = onSelectSuggestion,
-                            onPerformSearch = onPerformSearch
-                        )
-
-                        // Error banner
-                        if (errorMessage != null) {
-                            ErrorCard(message = errorMessage)
-                        }
-
-                        // Result Card
-                        if (currentResult != null) {
-                            ResultCard(
-                                result = currentResult,
-                                preferredScheme = settings.preferredScheme,
-                                onOpenOrganicMaps = {
-                                    OrganicMapsLauncher.launchOrganicMaps(
-                                        context = context,
+                                // Result Card
+                                if (currentResult != null) {
+                                    ResultCard(
                                         result = currentResult,
                                         preferredScheme = settings.preferredScheme,
-                                        onNotInstalled = { showNotInstalledDialog = true }
+                                        onOpenOrganicMaps = {
+                                            OrganicMapsLauncher.launchOrganicMaps(
+                                                context = context,
+                                                result = currentResult,
+                                                preferredScheme = settings.preferredScheme,
+                                                onNotInstalled = { showNotInstalledDialog = true }
+                                            )
+                                        },
+                                        onCopyCoords = { OrganicMapsLauncher.copyCoordinatesToClipboard(context, currentResult) },
+                                        onCopyOmLink = { OrganicMapsLauncher.copyOmLinkToClipboard(context, currentResult) },
+                                        onOpenSystem = { OrganicMapsLauncher.openInSystemMap(context, currentResult) },
+                                        onOpenOsm = { OrganicMapsLauncher.openInOsmWeb(context, currentResult) },
+                                        onShare = { OrganicMapsLauncher.shareCoordinates(context, currentResult) }
+                                    )
+                                }
+
+                                // History Section
+                                if (history.isNotEmpty()) {
+                                    HistorySection(
+                                        items = history,
+                                        preferredScheme = settings.preferredScheme,
+                                        onSelectItem = onSelectHistoryItem,
+                                        onOpenItem = { item ->
+                                            OrganicMapsLauncher.launchOrganicMaps(
+                                                context = context,
+                                                result = item.toCoordinateResult(),
+                                                preferredScheme = settings.preferredScheme,
+                                                onNotInstalled = { showNotInstalledDialog = true }
+                                            )
+                                        },
+                                        onCopyItem = { item ->
+                                            OrganicMapsLauncher.copyCoordinatesToClipboard(context, item.toCoordinateResult())
+                                        },
+                                        onDeleteItem = onDeleteHistoryItem,
+                                        onClearAll = { showConfirmClearDialog = true }
+                                    )
+                                }
+                            }
+
+                            // Bottom-Right "Get Current Location" Button (visible on Tab 0)
+                            Surface(
+                                onClick = { onGetCurrentLocationClicked() },
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .navigationBarsPadding()
+                                    .padding(end = 16.dp, bottom = 16.dp)
+                                    .zIndex(4f),
+                                shape = RoundedCornerShape(50),
+                                color = PureWhite,
+                                shadowElevation = 8.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (isLocating) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = PureBlack
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Filled.MyLocation,
+                                            contentDescription = "Current Location",
+                                            tint = PureBlack,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Get Current Location",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PureBlack
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    1 -> {
+                        // Tab 1: Gmap WV (kept permanently in composition via beyondViewportPageCount)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(DarkBackground)
+                        ) {
+                            GmapWebView(
+                                modifier = Modifier.fillMaxSize(),
+                                isActive = (pagerState.currentPage == 1),
+                                onCoordinatesDerived = { result ->
+                                    onSelectHistoryItem(
+                                        HistoryItem(
+                                            id = java.util.UUID.randomUUID().toString(),
+                                            latitude = result.latitude,
+                                            longitude = result.longitude,
+                                            name = result.name,
+                                            sourceMethod = result.sourceMethod,
+                                            originalUrl = result.originalUrl,
+                                            timestamp = System.currentTimeMillis()
+                                        )
                                     )
                                 },
-                                onCopyCoords = { OrganicMapsLauncher.copyCoordinatesToClipboard(context, currentResult) },
-                                onCopyOmLink = { OrganicMapsLauncher.copyOmLinkToClipboard(context, currentResult) },
-                                onOpenSystem = { OrganicMapsLauncher.openInSystemMap(context, currentResult) },
-                                onOpenOsm = { OrganicMapsLauncher.openInOsmWeb(context, currentResult) },
-                                onShare = { OrganicMapsLauncher.shareCoordinates(context, currentResult) }
-                            )
-                        }
-
-                        // History Section
-                        if (history.isNotEmpty()) {
-                            HistorySection(
-                                items = history,
-                                preferredScheme = settings.preferredScheme,
-                                onSelectItem = onSelectHistoryItem,
-                                onOpenItem = { item ->
+                                onOpenOrganicMaps = { result ->
                                     OrganicMapsLauncher.launchOrganicMaps(
                                         context = context,
-                                        result = item.toCoordinateResult(),
+                                        result = result,
                                         preferredScheme = settings.preferredScheme,
                                         onNotInstalled = { showNotInstalledDialog = true }
                                     )
                                 },
-                                onCopyItem = { item ->
-                                    OrganicMapsLauncher.copyCoordinatesToClipboard(context, item.toCoordinateResult())
-                                },
-                                onDeleteItem = onDeleteHistoryItem,
-                                onClearAll = { showConfirmClearDialog = true }
+                                onOpenSystemMap = { result ->
+                                    OrganicMapsLauncher.openInSystemMap(context, result)
+                                }
                             )
-                        }
-                    }
-                }
 
-                // Bottom-Right "Get Current Location" Button (visible on Tab 0)
-                if (activeTab == 0) {
-                    Surface(
-                        onClick = { onGetCurrentLocationClicked() },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .navigationBarsPadding()
-                            .padding(end = 16.dp, bottom = 16.dp)
-                            .zIndex(4f),
-                        shape = RoundedCornerShape(50),
-                        color = PureWhite,
-                        shadowElevation = 8.dp
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (isLocating) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                    color = PureBlack
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Filled.MyLocation,
-                                    contentDescription = "Current Location",
-                                    tint = PureBlack,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Get Current Location",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PureBlack
+                            // Left-edge swipe strip to slide back to Tab 0 smoothly
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .fillMaxHeight()
+                                    .width(36.dp)
+                                    .zIndex(10f)
+                                    .pointerInput(Unit) {
+                                        detectHorizontalDragGestures { _, dragAmount ->
+                                            if (dragAmount > 12f) {
+                                                coroutineScope.launch {
+                                                    pagerState.animateScrollToPage(0)
+                                                }
+                                            }
+                                        }
+                                    }
                             )
                         }
                     }
@@ -428,10 +476,12 @@ fun MainScreen(
 
 @Composable
 fun TopBar(
-    activeTab: Int,
-    onTabChange: (Int) -> Unit,
+    pagerState: PagerState,
     onOpenSettings: () -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    var dragAccumulator by remember { mutableFloatStateOf(0f) }
+
     Surface(
         color = DarkBackground,
         modifier = Modifier.fillMaxWidth()
@@ -443,78 +493,122 @@ fun TopBar(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Mode Selector Segmented Tabs
+            // Mode Selector Segmented Tabs with sliding indicator pill
             Surface(
                 color = DarkSurface,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .draggable(
+                        state = rememberDraggableState { delta ->
+                            dragAccumulator += delta
+                        },
+                        orientation = Orientation.Horizontal,
+                        onDragStopped = { velocity ->
+                            coroutineScope.launch {
+                                if (velocity < -250f || dragAccumulator < -30f) {
+                                    pagerState.animateScrollToPage(1)
+                                } else if (velocity > 250f || dragAccumulator > 30f) {
+                                    pagerState.animateScrollToPage(0)
+                                }
+                                dragAccumulator = 0f
+                            }
+                        }
+                    ),
                 shape = RoundedCornerShape(50),
                 border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
             ) {
-                Row(
+                BoxWithConstraints(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxSize()
+                        .padding(4.dp)
                 ) {
-                    // Tab 0: Search Places
-                    Surface(
-                        color = if (activeTab == 0) PureWhite else Color.Transparent,
-                        shape = RoundedCornerShape(50),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(50))
-                            .clickable { onTabChange(0) }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(vertical = 10.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Search,
-                                contentDescription = null,
-                                tint = if (activeTab == 0) PureBlack else TextSecondaryDark,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Search Places",
-                                fontSize = 13.sp,
-                                fontWeight = if (activeTab == 0) FontWeight.Bold else FontWeight.Medium,
-                                color = if (activeTab == 0) PureBlack else TextSecondaryDark,
-                                maxLines = 1
-                            )
-                        }
-                    }
+                    val tabWidth = maxWidth / 2
+                    val scrollFraction = (pagerState.currentPage + pagerState.currentPageOffsetFraction).coerceIn(0f, 1f)
 
-                    // Tab 1: Gmap WV
-                    Surface(
-                        color = if (activeTab == 1) PureWhite else Color.Transparent,
-                        shape = RoundedCornerShape(50),
+                    // 1. Sliding pill indicator
+                    Box(
                         modifier = Modifier
-                            .weight(1f)
+                            .offset(x = tabWidth * scrollFraction)
+                            .width(tabWidth)
+                            .fillMaxHeight()
                             .clip(RoundedCornerShape(50))
-                            .clickable { onTabChange(1) }
+                            .background(PureWhite)
+                    )
+
+                    // 2. Tab labels and click targets
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(vertical = 10.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
+                        // Tab 0: Search Places
+                        val tab0Color = lerp(PureBlack, TextSecondaryDark, scrollFraction)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(50))
+                                .clickable {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(0)
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.Language,
-                                contentDescription = null,
-                                tint = if (activeTab == 1) PureBlack else TextSecondaryDark,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Gmap WV",
-                                fontSize = 13.sp,
-                                fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Medium,
-                                color = if (activeTab == 1) PureBlack else TextSecondaryDark,
-                                maxLines = 1
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Search,
+                                    contentDescription = null,
+                                    tint = tab0Color,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Search Places",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (scrollFraction < 0.5f) FontWeight.Bold else FontWeight.Medium,
+                                    color = tab0Color,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        // Tab 1: Gmap WV
+                        val tab1Color = lerp(TextSecondaryDark, PureBlack, scrollFraction)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(50))
+                                .clickable {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(1)
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Language,
+                                    contentDescription = null,
+                                    tint = tab1Color,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Gmap WV",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (scrollFraction >= 0.5f) FontWeight.Bold else FontWeight.Medium,
+                                    color = tab1Color,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }
