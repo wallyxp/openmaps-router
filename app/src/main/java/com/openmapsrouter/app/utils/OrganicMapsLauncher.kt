@@ -35,6 +35,66 @@ object OrganicMapsLauncher {
         return "geo:$latStr,$lonStr?q=$latStr,$lonStr$label"
     }
 
+    fun buildOrganicMapsRouteUrl(
+        destLat: Double,
+        destLon: Double,
+        destName: String?,
+        startLat: Double? = null,
+        startLon: Double? = null
+    ): String {
+        val destLatStr = String.format(Locale.US, "%.6f", destLat)
+        val destLonStr = String.format(Locale.US, "%.6f", destLon)
+        val daddr = if (!destName.isNullOrBlank()) {
+            "&daddr=" + URLEncoder.encode(destName, StandardCharsets.UTF_8.name())
+        } else ""
+
+        val startPart = if (startLat != null && startLon != null) {
+            val sLatStr = String.format(Locale.US, "%.6f", startLat)
+            val sLonStr = String.format(Locale.US, "%.6f", startLon)
+            "sll=$sLatStr,$sLonStr&saddr=My%20Location&"
+        } else ""
+
+        return "om://route?${startPart}dll=$destLatStr,$destLonStr$daddr&type=vehicle"
+    }
+
+    fun launchOrganicMapsRouting(
+        context: Context,
+        result: CoordinateResult,
+        startLat: Double? = null,
+        startLon: Double? = null
+    ): Boolean {
+        val omRouteUri = buildOrganicMapsRouteUrl(
+            result.latitude,
+            result.longitude,
+            result.name,
+            startLat,
+            startLon
+        )
+
+        // 1. Try om://route custom scheme
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(omRouteUri)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            return true
+        } catch (_: Exception) {}
+
+        // 2. Try google.navigation:q=lat,lon specifically targeted at Organic Maps
+        try {
+            val navUri = Uri.parse("google.navigation:q=${result.latitude},${result.longitude}&mode=d")
+            val navIntent = Intent(Intent.ACTION_VIEW, navUri).apply {
+                setPackage("app.organicmaps")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(navIntent)
+            return true
+        } catch (_: Exception) {}
+
+        // 3. Fallback to standard Organic Maps launch
+        return launchOrganicMaps(context, result)
+    }
+
     fun buildOsmWebUrl(lat: Double, lon: Double): String {
         val latStr = String.format(Locale.US, "%.6f", lat)
         val lonStr = String.format(Locale.US, "%.6f", lon)

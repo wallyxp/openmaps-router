@@ -14,6 +14,7 @@ data class CoordinateResult(
     val latitude: Double,
     val longitude: Double,
     val name: String? = null,
+    val address: String? = null,
     val sourceMethod: SourceMethod,
     val originalUrl: String,
     val resolvedUrl: String? = null,
@@ -25,6 +26,7 @@ data class HistoryItem(
     val latitude: Double,
     val longitude: Double,
     val name: String? = null,
+    val address: String? = null,
     val sourceMethod: SourceMethod,
     val originalUrl: String,
     val timestamp: Long = System.currentTimeMillis()
@@ -34,6 +36,7 @@ data class HistoryItem(
             latitude = latitude,
             longitude = longitude,
             name = name,
+            address = address,
             sourceMethod = sourceMethod,
             originalUrl = originalUrl,
             timestamp = timestamp

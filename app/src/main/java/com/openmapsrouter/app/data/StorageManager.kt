@@ -54,6 +54,7 @@ class StorageManager(context: Context) {
             latitude = result.latitude,
             longitude = result.longitude,
             name = result.name,
+            address = result.address,
             sourceMethod = result.sourceMethod,
             originalUrl = result.originalUrl,
             timestamp = result.timestamp

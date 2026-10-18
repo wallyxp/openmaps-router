@@ -179,6 +179,7 @@ object PlaceSearchService {
                 latitude = suggestion.latitude,
                 longitude = suggestion.longitude,
                 name = suggestion.name,
+                address = suggestion.address.takeIf { it.isNotBlank() },
                 sourceMethod = SourceMethod.DIRECT_COORDS,
                 originalUrl = "${suggestion.name}, ${suggestion.address}"
             )
@@ -205,6 +206,7 @@ object PlaceSearchService {
                                 latitude = lat,
                                 longitude = lon,
                                 name = suggestion.name,
+                                address = formattedAddress ?: suggestion.address.takeIf { it.isNotBlank() },
                                 sourceMethod = SourceMethod.PIN_EXACT,
                                 originalUrl = formattedAddress ?: suggestion.name
                             )

@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Navigation
@@ -53,6 +54,8 @@ import com.openmapsrouter.app.data.CoordinateResult
 import com.openmapsrouter.app.data.SourceMethod
 import com.openmapsrouter.app.parser.MapsParser
 import com.openmapsrouter.app.ui.theme.*
+import com.openmapsrouter.app.utils.LocationHelper
+import com.openmapsrouter.app.utils.OrganicMapsLauncher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -84,11 +87,31 @@ fun GmapWebView(
         isDeriving = true
         coroutineScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
+                val initialResult = withContext(Dispatchers.IO) {
                     MapsParser.deriveCoordinates(raw)
                 }
-                derivedResult = result
-                onCoordinatesDerived(result)
+                // Reverse geocode to retrieve full place name and full street address
+                val geo = withContext(Dispatchers.IO) {
+                    LocationHelper.reverseGeocode(context, initialResult.latitude, initialResult.longitude)
+                }
+                val addressParts = geo.fullAddress?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
+                val fallbackFromAddress = when {
+                    addressParts.size >= 2 && addressParts[0].matches(Regex("""^\d+.*$""")) -> "${addressParts[0]}, ${addressParts[1]}"
+                    addressParts.isNotEmpty() -> addressParts[0]
+                    else -> null
+                }
+                val enrichedName = when {
+                    !initialResult.name.isNullOrBlank() && !initialResult.name.matches(Regex("""^-?\d+(\.\d+)?$""")) && initialResult.name != "Selected Location" -> initialResult.name
+                    !geo.name.isNullOrBlank() && !geo.name.matches(Regex("""^-?\d+(\.\d+)?$""")) -> geo.name
+                    !fallbackFromAddress.isNullOrBlank() -> fallbackFromAddress
+                    else -> "Selected Location"
+                }
+                val finalResult = initialResult.copy(
+                    name = enrichedName,
+                    address = geo.fullAddress
+                )
+                derivedResult = finalResult
+                onCoordinatesDerived(finalResult)
             } catch (e: Exception) {
                 // If it was an unresolvable URL, try extracting simple @lat,lon if present
                 val atPattern = Regex("""@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)""")
@@ -97,10 +120,21 @@ fun GmapWebView(
                     val lat = match.groupValues[1].toDoubleOrNull()
                     val lon = match.groupValues[2].toDoubleOrNull()
                     if (lat != null && lon != null && MapsParser.isValidCoordinate(lat, lon)) {
+                        val geo = withContext(Dispatchers.IO) {
+                            LocationHelper.reverseGeocode(context, lat, lon)
+                        }
+                        val addressParts = geo.fullAddress?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
+                        val fallbackName = when {
+                            !geo.name.isNullOrBlank() && !geo.name.matches(Regex("""^-?\d+(\.\d+)?$""")) -> geo.name
+                            addressParts.size >= 2 && addressParts[0].matches(Regex("""^\d+.*$""")) -> "${addressParts[0]}, ${addressParts[1]}"
+                            addressParts.isNotEmpty() -> addressParts[0]
+                            else -> "Selected Location"
+                        }
                         val fallback = CoordinateResult(
                             latitude = lat,
                             longitude = lon,
-                            name = "Selected Location",
+                            name = fallbackName,
+                            address = geo.fullAddress,
                             sourceMethod = SourceMethod.WEBVIEW_INTERCEPT,
                             originalUrl = raw
                         )
@@ -276,8 +310,46 @@ fun GmapWebView(
                                                 button[data-tooltip*="Street View" i],
                                                 a[href*="cbll="],
                                                 a[href*="panoid="],
-                                                div[role="dialog"][aria-label*="app"],
-                                                div[data-promo-id] {
+                                                .ml-my-location-fab,
+                                                [class*="my-location"],
+                                                [jsaction*="my_location"],
+                                                [jsaction*="mylocation"],
+                                                [aria-label*="Your location" i],
+                                                [aria-label*="Show your location" i],
+                                                .ml-directions-fab,
+                                                [class*="directions-fab"],
+                                                [jsaction*="directions"],
+                                                [aria-label*="Directions" i],
+                                                button[data-tooltip*="Directions" i],
+                                                .P8NcLd,
+                                                [class*="P8NcLd"],
+                                                .Gv0Cj,
+                                                [class*="Gv0Cj"],
+                                                [jsaction*="start.drag"],
+                                                [jsaction*="start.drive"],
+                                                [jsaction*="start.two-wheeler"],
+                                                [jsaction*="start.walk"],
+                                                [jsaction*="start.transit"],
+                                                [jsaction*="start.toggle"],
+                                                [jsaction*="start.togglefullpane"],
+                                                .ml-bottom-sheet,
+                                                [class*="quick-actions"],
+                                                [aria-label*="quick actions" i],
+                                                [aria-label*="Quick actions" i],
+                                                [aria-label*="Tap to see quick actions" i],
+                                                .ml-place-card,
+                                                [class*="ml-place-card"],
+                                                [class*="place-card"],
+                                                [class*="place-sheet"],
+                                                [class*="ml-place-details"],
+                                                [class*="place-details"],
+                                                [class*="place-info"],
+                                                [jsaction*="placeCard"],
+                                                [aria-label*="Place details" i],
+                                                [aria-label*="Information about" i],
+                                                div[data-place-id],
+                                                div[data-promo-id],
+                                                div[role="dialog"][aria-label*="app" i] {
                                                     display: none !important;
                                                     visibility: hidden !important;
                                                     height: 0 !important;
@@ -323,6 +395,23 @@ fun GmapWebView(
                                                 el.style.setProperty('display', 'none', 'important');
                                                 el.style.setProperty('visibility', 'hidden', 'important');
                                                 el.style.setProperty('height', '0px', 'important');
+                                            }
+
+                                            // Hide "Your location" button, directions FAB, quick actions panel, Directions sheet, and location details popup
+                                            const extraElements = document.querySelectorAll(
+                                                '.P8NcLd, [class*="P8NcLd"], .Gv0Cj, [class*="Gv0Cj"], [jsaction*="start.drag"], [jsaction*="start.drive"], [jsaction*="start.two-wheeler"], [jsaction*="start.walk"], [jsaction*="start.transit"], [jsaction*="start.toggle"], ' +
+                                                '.ml-my-location-fab, [class*="my-location"], [jsaction*="myLocation"], [jsaction*="my_location"], [jsaction*="mylocation"], [aria-label*="Your location" i], ' +
+                                                '.ml-directions-fab, [class*="directions-fab"], [jsaction*="directions"], [aria-label*="Directions" i], ' +
+                                                '.ml-pane-container, .ml-bottom-sheet, [class*="quick-actions"], [aria-label*="quick actions" i], [aria-label*="Tap to see quick actions" i], ' +
+                                                '.ml-place-card, .widget-pane, div[role="dialog"]'
+                                            );
+                                            for (let i = 0; i < extraElements.length; i++) {
+                                                const el = extraElements[i];
+                                                if (!el.querySelector('input, #searchbox')) {
+                                                    el.style.setProperty('display', 'none', 'important');
+                                                    el.style.setProperty('visibility', 'hidden', 'important');
+                                                    el.style.setProperty('height', '0px', 'important');
+                                                }
                                             }
 
                                             // Auto-click "Stay on web" or "Use web" if prompt appears
@@ -515,36 +604,50 @@ fun GmapWebView(
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Header with status indicator & place title & dismiss button
+                        // Header with status indicator & place title, address, coordinates & dismiss button
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalAlignment = Alignment.Top,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
+                                verticalAlignment = Alignment.Top,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Box(
                                     modifier = Modifier
+                                        .padding(top = 5.dp)
                                         .size(8.dp)
                                         .clip(CircleShape)
                                         .background(EmeraldGreen)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = result.name ?: "Derived Location",
-                                        fontSize = 14.sp,
+                                        text = result.name ?: "Selected Location",
+                                        fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = PureWhite,
-                                        maxLines = 1,
+                                        maxLines = 2,
                                         overflow = TextOverflow.Ellipsis
                                     )
+                                    if (!result.address.isNullOrBlank() && result.address != result.name) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = result.address,
+                                            fontSize = 12.sp,
+                                            color = TextSecondaryDark,
+                                            maxLines = 3,
+                                            overflow = TextOverflow.Ellipsis,
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = String.format(Locale.US, "%.5f, %.5f", result.latitude, result.longitude),
                                         fontSize = 11.sp,
-                                        color = TextSecondaryDark
+                                        color = EmeraldGreen,
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
                             }
@@ -562,14 +665,60 @@ fun GmapWebView(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
 
-                        // THE TWO CIRCULAR BUTTONS AT BOTTOM CENTER
+                        // THE THREE CIRCULAR BUTTONS AT BOTTOM CENTER
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(36.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // 1. CIRCULAR BUTTON: Redirect to Organic Maps
+                            // 1. CIRCULAR BUTTON: Route To (Direct Organic Maps Routing from Current Location)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Surface(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            val myLoc = LocationHelper.getCurrentLocation(context)
+                                            OrganicMapsLauncher.launchOrganicMapsRouting(
+                                                context = context,
+                                                result = result,
+                                                startLat = myLoc?.latitude,
+                                                startLon = myLoc?.longitude
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape),
+                                    shape = CircleShape,
+                                    color = EmeraldGreen,
+                                    shadowElevation = 6.dp
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Directions,
+                                            contentDescription = "Route To with Organic Maps",
+                                            tint = PureBlack,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Route To",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldGreen,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                            // 2. CIRCULAR BUTTON: Redirect to Organic Maps
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
@@ -578,7 +727,7 @@ fun GmapWebView(
                                         onOpenOrganicMaps(result)
                                     },
                                     modifier = Modifier
-                                        .size(58.dp)
+                                        .size(56.dp)
                                         .clip(CircleShape),
                                     shape = CircleShape,
                                     color = PureWhite,
@@ -592,7 +741,7 @@ fun GmapWebView(
                                             imageVector = Icons.Filled.Navigation,
                                             contentDescription = "Redirect to Organic Maps",
                                             tint = PureBlack,
-                                            modifier = Modifier.size(28.dp)
+                                            modifier = Modifier.size(26.dp)
                                         )
                                     }
                                 }
@@ -606,7 +755,7 @@ fun GmapWebView(
                                 )
                             }
 
-                            // 2. CIRCULAR BUTTON: System Map
+                            // 3. CIRCULAR BUTTON: System Map
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
@@ -615,7 +764,7 @@ fun GmapWebView(
                                         onOpenSystemMap(result)
                                     },
                                     modifier = Modifier
-                                        .size(58.dp)
+                                        .size(56.dp)
                                         .clip(CircleShape),
                                     shape = CircleShape,
                                     color = DarkSurface,
@@ -630,7 +779,7 @@ fun GmapWebView(
                                             imageVector = Icons.Filled.Map,
                                             contentDescription = "Open in System Map",
                                             tint = PureWhite,
-                                            modifier = Modifier.size(28.dp)
+                                            modifier = Modifier.size(26.dp)
                                         )
                                     }
                                 }
