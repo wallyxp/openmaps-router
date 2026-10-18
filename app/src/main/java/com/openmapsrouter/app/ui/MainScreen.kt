@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -200,6 +201,7 @@ fun MainScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .zIndex(1f)
                                 .background(DarkBackground)
                         ) {
                             Column(
@@ -322,58 +324,71 @@ fun MainScreen(
                         }
                     }
                     1 -> {
-                        // Tab 1: Gmap WV (kept permanently in composition via beyondViewportPageCount)
+                        // Tab 1: Gmap WV (lazy initialized on first access or swipe, then kept permanently alive)
+                        var hasBeenActivated by remember { mutableStateOf(false) }
+                        val isSlidingToTab1 = pagerState.currentPage == 1 || pagerState.targetPage == 1 || pagerState.currentPageOffsetFraction > 0.01f
+                        if (isSlidingToTab1) {
+                            hasBeenActivated = true
+                        }
+
+                        val isStationaryOnTab0 = (pagerState.currentPage == 0 && pagerState.currentPageOffsetFraction == 0f)
+
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .graphicsLayer {
+                                    alpha = if (isStationaryOnTab0) 0f else 1f
+                                }
                                 .background(DarkBackground)
                         ) {
-                            GmapWebView(
-                                modifier = Modifier.fillMaxSize(),
-                                isActive = (pagerState.currentPage == 1),
-                                onCoordinatesDerived = { result ->
-                                    onSelectHistoryItem(
-                                        HistoryItem(
-                                            id = java.util.UUID.randomUUID().toString(),
-                                            latitude = result.latitude,
-                                            longitude = result.longitude,
-                                            name = result.name,
-                                            sourceMethod = result.sourceMethod,
-                                            originalUrl = result.originalUrl,
-                                            timestamp = System.currentTimeMillis()
+                            if (hasBeenActivated) {
+                                GmapWebView(
+                                    modifier = Modifier.fillMaxSize(),
+                                    isActive = (pagerState.currentPage == 1),
+                                    onCoordinatesDerived = { result ->
+                                        onSelectHistoryItem(
+                                            HistoryItem(
+                                                id = java.util.UUID.randomUUID().toString(),
+                                                latitude = result.latitude,
+                                                longitude = result.longitude,
+                                                name = result.name,
+                                                sourceMethod = result.sourceMethod,
+                                                originalUrl = result.originalUrl,
+                                                timestamp = System.currentTimeMillis()
+                                            )
                                         )
-                                    )
-                                },
-                                onOpenOrganicMaps = { result ->
-                                    OrganicMapsLauncher.launchOrganicMaps(
-                                        context = context,
-                                        result = result,
-                                        preferredScheme = settings.preferredScheme,
-                                        onNotInstalled = { showNotInstalledDialog = true }
-                                    )
-                                },
-                                onOpenSystemMap = { result ->
-                                    OrganicMapsLauncher.openInSystemMap(context, result)
-                                }
-                            )
+                                    },
+                                    onOpenOrganicMaps = { result ->
+                                        OrganicMapsLauncher.launchOrganicMaps(
+                                            context = context,
+                                            result = result,
+                                            preferredScheme = settings.preferredScheme,
+                                            onNotInstalled = { showNotInstalledDialog = true }
+                                        )
+                                    },
+                                    onOpenSystemMap = { result ->
+                                        OrganicMapsLauncher.openInSystemMap(context, result)
+                                    }
+                                )
 
-                            // Left-edge swipe strip to slide back to Tab 0 smoothly
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.CenterStart)
-                                    .fillMaxHeight()
-                                    .width(36.dp)
-                                    .zIndex(10f)
-                                    .pointerInput(Unit) {
-                                        detectHorizontalDragGestures { _, dragAmount ->
-                                            if (dragAmount > 12f) {
-                                                coroutineScope.launch {
-                                                    pagerState.animateScrollToPage(0)
+                                // Left-edge swipe strip to slide back to Tab 0 smoothly
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterStart)
+                                        .fillMaxHeight()
+                                        .width(36.dp)
+                                        .zIndex(10f)
+                                        .pointerInput(Unit) {
+                                            detectHorizontalDragGestures { _, dragAmount ->
+                                                if (dragAmount > 12f) {
+                                                    coroutineScope.launch {
+                                                        pagerState.animateScrollToPage(0)
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                            )
+                                )
+                            }
                         }
                     }
                 }
