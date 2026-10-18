@@ -238,12 +238,19 @@ fun GmapWebView(
                         private fun injectHelperJs(view: WebView) {
                             val js = """
                                 (function() {
-                                    // 1. Hide "Open app" and "Stay on web" promotion modals via CSS
+                                    // 1. Hide "Google Maps" & "Open app" top banner, "Stay on web", and promotion modals via CSS
+                                    try {
+                                        window.localStorage.setItem('igmmstate', JSON.stringify({state: '1', timestamp: Date.now()}));
+                                    } catch(e) {}
+
                                     try {
                                         if (!document.getElementById('__omr_suppress_style')) {
                                             const style = document.createElement('style');
                                             style.id = '__omr_suppress_style';
                                             style.textContent = `
+                                                .ml-persistent-promo-banner,
+                                                [class*="ml-persistent-promo-banner"],
+                                                [jsaction*="promotion.openApp"],
                                                 .app-promo-container,
                                                 #app-promo,
                                                 .waterfall-app-promo,
@@ -251,6 +258,7 @@ fun GmapWebView(
                                                 .app-banner,
                                                 [aria-label*="Open in app"],
                                                 [aria-label*="Open app"],
+                                                [aria-label*="Get app"],
                                                 [aria-label*="Use app"],
                                                 .open-in-app-banner,
                                                 .app-bar,
@@ -267,14 +275,37 @@ fun GmapWebView(
                                                     overflow: hidden !important;
                                                     pointer-events: none !important;
                                                 }
+                                                [style*="top: 45px"],
+                                                [style*="top:45px"] {
+                                                    top: 0px !important;
+                                                }
                                             `;
                                             (document.head || document.documentElement).appendChild(style);
                                         }
                                     } catch(e) {}
 
-                                    // 2. Auto-click "Stay on web" or "Use web" if prompt appears
-                                    function dismissStayOnWeb() {
+                                    // 2. Hide top header / promo banner, remove top offset, and auto-click "Stay on web"
+                                    function suppressBannersAndDismissPromos() {
                                         try {
+                                            // Explicitly hide top banner container if created dynamically
+                                            const promoBanners = document.querySelectorAll('.ml-persistent-promo-banner, [class*="persistent-promo-banner"], [jsaction*="promotion.openApp"]');
+                                            for (let i = 0; i < promoBanners.length; i++) {
+                                                const el = promoBanners[i];
+                                                const banner = el.closest('.ml-persistent-promo-banner') || el;
+                                                banner.style.setProperty('display', 'none', 'important');
+                                                banner.style.setProperty('height', '0px', 'important');
+                                                banner.style.setProperty('visibility', 'hidden', 'important');
+                                            }
+
+                                            // Eliminate top: 45px offset left by Google Maps banner placeholder
+                                            const shifted = document.querySelectorAll('[style*="top"]');
+                                            for (let i = 0; i < shifted.length; i++) {
+                                                if (shifted[i].style.top === '45px') {
+                                                    shifted[i].style.setProperty('top', '0px', 'important');
+                                                }
+                                            }
+
+                                            // Auto-click "Stay on web" or "Use web" if prompt appears
                                             const candidates = document.querySelectorAll('button, a, span, div[role="button"], p');
                                             for (let i = 0; i < candidates.length; i++) {
                                                 const el = candidates[i];
@@ -287,13 +318,13 @@ fun GmapWebView(
                                             }
                                         } catch(e) {}
                                     }
-                                    dismissStayOnWeb();
-                                    const promoInterval = setInterval(dismissStayOnWeb, 150);
-                                    setTimeout(function() { clearInterval(promoInterval); }, 8000);
+                                    suppressBannersAndDismissPromos();
+                                    const promoInterval = setInterval(suppressBannersAndDismissPromos, 150);
+                                    setTimeout(function() { clearInterval(promoInterval); }, 10000);
 
                                     try {
                                         const observer = new MutationObserver(function() {
-                                            dismissStayOnWeb();
+                                            suppressBannersAndDismissPromos();
                                         });
                                         if (document.body) {
                                             observer.observe(document.body, { childList: true, subtree: true });
@@ -429,44 +460,7 @@ fun GmapWebView(
             )
         }
 
-        // Floating Quick Action: "Derive Pin / Center" Button in Top-Right
-        Surface(
-            onClick = { extractFromCurrentWebView() },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 16.dp, end = 16.dp),
-            shape = RoundedCornerShape(50),
-            color = DarkSurfaceElevated,
-            border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
-            shadowElevation = 6.dp
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isDeriving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(14.dp),
-                        strokeWidth = 2.dp,
-                        color = PureWhite
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.GpsFixed,
-                        contentDescription = "Derive Current Location",
-                        tint = EmeraldGreen,
-                        modifier = Modifier.size(15.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Derive Pin",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = PureWhite
-                )
-            }
-        }
+
 
         // SLIDE-UP ANIMATED BUTTONS AT BOTTOM CENTER
         AnimatedVisibility(
